@@ -1,0 +1,684 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Binary equivalence review</title>
+<meta name="description" content="A reviewer's-eye view of a binary equivalence classification: whether two compiled Java classes behave the same, the specific reason they differ, model confidence, and the bytecode evidence.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#4f5bd5">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Binary equivalence review">
+<meta property="og:description" content="Explaining a binary equivalence classification for a human reviewer: verdict, specific label, confidence, and bytecode evidence.">
+<meta name="twitter:card" content="summary">
+<style>
+  /* ---- tokens -------------------------------------------------------- */
+  :root {
+    --ground: #f6f7f9;
+    --surface: #ffffff;
+    --surface-2: #f1f3f7;
+    --ink: #1a1f2b;
+    --muted: #5b6472;
+    --faint: #8b93a1;
+    --border: #e2e6ee;
+    --border-strong: #cfd5e0;
+    --accent: #4f5bd5;         /* interactive chrome only, never a verdict */
+    --ok: #1f8a5b;    --ok-bg: #e7f4ee;   --ok-line: #1f8a5b;
+    --warn: #a5610a;  --warn-bg: #f7efe1;  --warn-line: #c9871f;
+    --crit: #c0392b;  --crit-bg: #f8e9e7;  --crit-line: #c0392b;
+    --shadow: 0 1px 2px rgba(20,26,40,.05), 0 6px 20px rgba(20,26,40,.06);
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #10131a;  --surface: #191d27;  --surface-2: #20262f;
+      --ink: #e7eaf0;  --muted: #9aa3b2;  --faint: #6c7686;
+      --border: #29303d;  --border-strong: #3a4150;
+      --accent: #9aa2f5;
+      --ok: #4cc38a;   --ok-bg: #16271f;   --ok-line: #2e9c68;
+      --warn: #e0a458; --warn-bg: #2a2318;  --warn-line: #b9812f;
+      --crit: #f0837a; --crit-bg: #2c1a18;  --crit-line: #b8483c;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="light"] {
+    --ground: #f6f7f9; --surface: #fff; --surface-2: #f1f3f7;
+    --ink: #1a1f2b; --muted: #5b6472; --faint: #8b93a1;
+    --border: #e2e6ee; --border-strong: #cfd5e0; --accent: #4f5bd5;
+    --ok:#1f8a5b; --ok-bg:#e7f4ee; --ok-line:#1f8a5b;
+    --warn:#a5610a; --warn-bg:#f7efe1; --warn-line:#c9871f;
+    --crit:#c0392b; --crit-bg:#f8e9e7; --crit-line:#c0392b;
+    --shadow: 0 1px 2px rgba(20,26,40,.05), 0 6px 20px rgba(20,26,40,.06);
+  }
+  :root[data-theme="dark"] {
+    --ground:#10131a; --surface:#191d27; --surface-2:#20262f;
+    --ink:#e7eaf0; --muted:#9aa3b2; --faint:#6c7686;
+    --border:#29303d; --border-strong:#3a4150; --accent:#9aa2f5;
+    --ok:#4cc38a; --ok-bg:#16271f; --ok-line:#2e9c68;
+    --warn:#e0a458; --warn-bg:#2a2318; --warn-line:#b9812f;
+    --crit:#f0837a; --crit-bg:#2c1a18; --crit-line:#b8483c;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+  }
+
+  * { box-sizing: border-box; }
+  html { color-scheme: light dark; }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font-family: var(--sans); line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 32px 20px 64px; }
+
+  [hidden] { display: none !important; }
+
+  /* ---- notice / example banner -------------------------------------- */
+  .notice { font-size: 14.5px; line-height: 1.5; color: var(--muted);
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-left: 3px solid var(--accent); border-radius: 8px;
+    padding: 11px 15px; margin-bottom: 20px; }
+  .notice b { color: var(--ink); }
+
+  /* ---- header -------------------------------------------------------- */
+  .masthead { display: flex; align-items: baseline; justify-content: space-between;
+    gap: 16px; flex-wrap: wrap; margin-bottom: 22px; }
+  .eyebrow { font-size: 12.5px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--faint); font-weight: 600; margin: 0 0 3px; }
+  .masthead h1 { font-size: 22px; font-weight: 650; margin: 0; letter-spacing: -.01em; }
+  .case-id { font-family: var(--mono); font-size: 13.5px; color: var(--muted);
+    background: var(--surface-2); border: 1px solid var(--border);
+    padding: 4px 9px; border-radius: 6px; white-space: nowrap; }
+
+  /* ---- verdict card -------------------------------------------------- */
+  .verdict { position: relative; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; box-shadow: var(--shadow); padding: 22px 24px 24px;
+    overflow: hidden; }
+  .verdict::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 5px;
+    background: var(--stripe, var(--border-strong)); }
+  .verdict[data-sev="ok"]   { --stripe: var(--ok-line); }
+  .verdict[data-sev="warn"] { --stripe: var(--warn-line); }
+  .verdict[data-sev="crit"] { --stripe: var(--crit-line); }
+
+  .verdict-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .badge { font-family: var(--mono); font-weight: 700; font-size: 17px;
+    letter-spacing: .02em; padding: 8px 16px; border-radius: 8px; line-height: 1;
+    border: 1px solid transparent; }
+  .badge[data-sev="ok"]   { background: var(--ok-bg);   color: var(--ok);   border-color: var(--ok-line); }
+  .badge[data-sev="warn"] { background: var(--warn-bg); color: var(--warn); border-color: var(--warn-line); }
+  .badge[data-sev="crit"] { background: var(--crit-bg); color: var(--crit); border-color: var(--crit-line); }
+  .recommend { font-size: 13px; color: var(--faint); letter-spacing: .04em;
+    text-transform: uppercase; font-weight: 600; }
+
+  .sublabel-row { margin-top: 18px; display: flex; align-items: baseline; gap: 10px;
+    flex-wrap: wrap; }
+  .sublabel-row .k { font-size: 13.5px; color: var(--muted); }
+  .sublabel { font-family: var(--mono); font-size: 15px; font-weight: 600;
+    color: var(--ink); background: var(--surface-2); border: 1px solid var(--border);
+    padding: 4px 10px; border-radius: 6px; }
+  .description { margin: 12px 0 0; color: var(--muted); font-size: 16px;
+    line-height: 1.55; max-width: 62ch; }
+
+  /* ---- confidence --------------------------------------------------- */
+  .conf { margin-top: 20px; }
+  .conf-top { display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 14px; color: var(--muted); margin-bottom: 7px; }
+  .conf-top strong { color: var(--ink); font-family: var(--mono);
+    font-variant-numeric: tabular-nums; font-size: 15px; }
+  .meter { height: 8px; background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 99px; overflow: hidden; }
+  .meter > span { display: block; height: 100%; border-radius: 99px;
+    background: var(--stripe, var(--accent)); transition: width .4s ease; }
+  .caution { display: none; margin-top: 12px; font-size: 14.5px; gap: 8px;
+    align-items: flex-start; color: var(--warn); background: var(--warn-bg);
+    border: 1px solid var(--warn-line); border-radius: 8px; padding: 8px 11px; }
+  .caution.show { display: flex; }
+
+  /* ---- alternatives ------------------------------------------------- */
+  /* Label wraps to full width (never truncated) with the % beside it and a
+     thin probability bar underneath. */
+  .alts { display: flex; flex-direction: column; gap: 8px; }
+  .alt { display: flex; flex-direction: column; gap: 8px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 9px; padding: 11px 14px; }
+  .alt .al-head { display: flex; justify-content: space-between; align-items: baseline;
+    gap: 12px; }
+  .alt .al-name { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .alt .al-term { font-size: 15px; color: var(--ink); line-height: 1.4; }
+  .alt .al-raw { font-family: var(--mono); font-size: 12.5px; color: var(--faint);
+    word-break: break-all; }
+  .alt .al-pct { font-family: var(--mono); font-size: 15px; color: var(--ink);
+    font-weight: 600; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+  .alt .al-bar { height: 6px; background: var(--surface-2); border-radius: 99px;
+    overflow: hidden; }
+  .alt .al-bar > span { display: block; height: 100%; border-radius: 99px;
+    background: var(--faint); }
+  .alt[data-sev="crit"] .al-bar > span { background: var(--crit-line); }
+  .alt[data-sev="warn"] .al-bar > span { background: var(--warn-line); }
+  .alt[data-sev="ok"]   .al-bar > span { background: var(--ok-line); }
+
+  /* ---- header subject (class name only; never a container path) ----- */
+  .subject { margin: 7px 0 0; font-family: var(--mono); font-size: 13.5px;
+    color: var(--muted); word-break: break-all; }
+  .subject b { color: var(--ink); font-weight: 600; }
+
+  /* ---- section labels (shared) -------------------------------------- */
+  .section-label { font-size: 12.5px; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--faint); font-weight: 600; margin: 28px 0 10px; }
+
+  /* ---- investigate (progressive disclosure) ------------------------- */
+  .panel { background: var(--surface); border: 1px solid var(--border);
+    border-radius: 11px; margin-top: 10px; overflow: hidden; }
+  .panel > summary { cursor: pointer; list-style: none; padding: 15px 16px;
+    display: flex; align-items: center; gap: 10px; font-size: 16px; font-weight: 600;
+    user-select: none; }
+  .panel > summary::-webkit-details-marker { display: none; }
+  .panel > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .chev { width: 8px; height: 8px; border-right: 2px solid var(--faint);
+    border-bottom: 2px solid var(--faint); transform: rotate(-45deg);
+    transition: transform .2s ease; margin-left: -2px; }
+  .panel[open] .chev { transform: rotate(45deg); }
+  .panel .summary-note { margin-left: auto; font-size: 13px; color: var(--faint); }
+  .panel-body { padding: 4px 16px 18px; border-top: 1px solid var(--border); }
+  .empty { color: var(--faint); font-size: 15px; padding: 14px 0 4px;
+    text-align: center; }
+  .empty code { font-family: var(--mono); font-size: 13.5px; }
+
+  /* feature importance — signed, per-instance (diverging bars) */
+  .fi-caption { font-size: 14.5px; color: var(--muted); padding: 12px 0 6px;
+    line-height: 1.5; }
+  .fi-caption b { color: var(--accent); font-weight: 600; }
+  .fi-caption i { color: var(--faint); font-style: normal; font-weight: 600; }
+  .fi { display: flex; flex-direction: column; gap: 10px; padding-top: 6px; }
+  .fi-row { display: grid; grid-template-columns: 200px 1fr 60px; align-items: center;
+    gap: 10px; }
+  .fi-row .name { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .fi-row .fname { font-size: 14px; color: var(--ink); white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; }
+  .fi-row .fraw { font-family: var(--mono); font-size: 12px; color: var(--faint);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .fi-track { position: relative; height: 9px; background: var(--surface-2);
+    border-radius: 99px; }
+  .fi-track .axis { position: absolute; left: 50%; top: -2px; bottom: -2px;
+    width: 1px; background: var(--border-strong); }
+  .fi-track > span { position: absolute; top: 0; bottom: 0; border-radius: 99px; }
+  .fi-track > span.pos { left: 50%; background: var(--accent); }
+  .fi-track > span.neg { right: 50%; background: var(--faint); }
+  .fi-row .val { font-family: var(--mono); font-size: 13.5px; text-align: right;
+    font-variant-numeric: tabular-nums; }
+  .fi-row .val.pos { color: var(--accent); }
+  .fi-row .val.neg { color: var(--muted); }
+  @media (max-width: 560px) { .fi-row { grid-template-columns: 120px 1fr 52px; } }
+
+  /* javap diff */
+  .diff { margin-top: 12px; border: 1px solid var(--border); border-radius: 8px;
+    overflow-x: auto; background: var(--surface-2); }
+  .diff pre { margin: 0; font-family: var(--mono); font-size: 13.5px; line-height: 1.6; }
+  .diff .ln { display: block; padding: 0 12px; white-space: pre; }
+  .diff .add { background: var(--ok-bg); color: var(--ok); }
+  .diff .del { background: var(--crit-bg); color: var(--crit); }
+  .diff .hunk { color: var(--accent); }
+
+  /* ---- reviewer decision -------------------------------------------- */
+  .decision { margin-top: 28px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px 18px; }
+  .decision h2 { font-size: 15px; margin: 0 0 4px; }
+  .decision p { margin: 0 0 14px; font-size: 14px; color: var(--muted); }
+  .actions { display: flex; gap: 9px; flex-wrap: wrap; }
+  .btn { font: inherit; font-size: 14.5px; font-weight: 550; cursor: pointer;
+    padding: 9px 15px; border-radius: 8px; border: 1px solid var(--border-strong);
+    background: var(--surface-2); color: var(--ink); transition: border-color .15s; }
+  .btn:hover { border-color: var(--accent); }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .btn[data-kind="agree"][aria-pressed="true"]    { color: var(--ok);   border-color: var(--ok-line); box-shadow: inset 0 0 0 1px var(--ok-line); }
+  .btn[data-kind="override"][aria-pressed="true"] { color: var(--crit); border-color: var(--crit-line); box-shadow: inset 0 0 0 1px var(--crit-line); }
+  .decision-status { margin-top: 12px; font-size: 14px; color: var(--muted);
+    min-height: 1.2em; }
+  .decision-status b { color: var(--ink); }
+
+  /* ---- footer ------------------------------------------------------- */
+  .foot { margin-top: 26px; display: flex; justify-content: space-between; gap: 12px;
+    flex-wrap: wrap; font-size: 13px; color: var(--faint); }
+  .foot code { font-family: var(--mono); color: var(--muted); }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="notice" id="notice" hidden></div>
+  <div class="masthead">
+    <div>
+      <p class="eyebrow">Binary equivalence review</p>
+      <h1>Classification for review</h1>
+      <p class="subject" id="subject" hidden></p>
+    </div>
+    <span class="case-id" id="caseId">—</span>
+  </div>
+
+  <!-- verdict ------------------------------------------------------- -->
+  <section class="verdict" id="verdict" aria-labelledby="verdictHead">
+    <div class="verdict-head">
+      <span class="badge" id="badge" data-sev="warn">—</span>
+      <span class="recommend">Model recommendation</span>
+    </div>
+    <div class="sublabel-row">
+      <span class="k">Specific label</span>
+      <span class="sublabel" id="sublabel">—</span>
+    </div>
+    <p class="description" id="description"></p>
+
+    <div class="conf">
+      <div class="conf-top">
+        <span>Model confidence</span>
+        <strong id="confPct">—</strong>
+      </div>
+      <div class="meter"><span id="confBar" style="width:0"></span></div>
+      <div class="caution" id="caution" role="note">
+        <span aria-hidden="true">&#9888;</span>
+        <span>Low confidence &mdash; treat this recommendation with extra scrutiny before deciding.</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- alternatives considered --------------------------------------- -->
+  <section id="altSection" hidden aria-labelledby="altLabel">
+    <p class="section-label" id="altLabel">Also considered</p>
+    <div class="alts" id="alts"></div>
+  </section>
+
+  <!-- investigate --------------------------------------------------- -->
+  <p class="section-label" id="investigateLabel">Investigate further</p>
+
+  <details class="panel" id="fiPanel">
+    <summary><span class="chev" aria-hidden="true"></span> Feature attribution &mdash; this pair
+      <span class="summary-note" id="fiNote"></span></summary>
+    <div class="panel-body" id="fiBody"></div>
+  </details>
+
+  <details class="panel" id="diffPanel" open>
+    <summary><span class="chev" aria-hidden="true"></span> Bytecode diff (javap)
+      <span class="summary-note" id="diffNote"></span></summary>
+    <div class="panel-body" id="diffBody"></div>
+  </details>
+
+  <!-- reviewer decision --------------------------------------------- -->
+  <section class="decision" aria-labelledby="decHead">
+    <h2 id="decHead">Reviewer decision</h2>
+    <p>You are accountable for the final call. The recommendation above is advisory.</p>
+    <div class="actions" role="group" aria-label="Reviewer decision">
+      <button class="btn" data-kind="agree" aria-pressed="false">Agree with recommendation</button>
+      <button class="btn" data-kind="override" aria-pressed="false">Override</button>
+      <button class="btn" data-kind="defer" aria-pressed="false">Needs more investigation</button>
+    </div>
+    <div class="decision-status" id="decStatus" aria-live="polite">No decision recorded.</div>
+  </section>
+
+  <div class="foot">
+    <span>Model: <code id="modelName">—</code></span>
+    <span>Evaluated <code id="evaluatedAt">—</code></span>
+  </div>
+</main>
+
+<script>
+window.__GLOSSARY__ = {"$comment": "Plain-language decoder for project-specific names shown in the reviewer UI. Audience is software engineers / security specialists, so terms stay precise but drop the internal shorthand. Single source of truth: consumed by ui/review.html (JS) and ui/glossary.py (Python). 'term' = short label; 'detail' = one-sentence explanation.", "version": 1, "binary": {"EQ": {"term": "Equivalent", "detail": "The two binaries are judged to behave the same."}, "NEQ": {"term": "Not equivalent", "detail": "The two binaries are judged to behave differently."}}, "groups": {"EQ": {"term": "Equivalent", "detail": "Behaviour matches; any differences are attributed to the build toolchain."}, "NEQ1": {"term": "Real code change", "detail": "Behaviour differs because of a genuine change between two versions of the source (a bytecode/API-level difference)."}, "NEQ2": {"term": "Test-mutation change", "detail": "Behaviour differs because a mutation-testing tool (Pitest) deliberately altered the source."}, "NEQM": {"term": "Suspected malicious injection", "detail": "Behaviour differs in a way that resembles injected malicious code. Highest priority to review."}, "NEQ3": {"term": "Vulnerability patch", "detail": "Behaviour differs because of a security fix. The model was not trained on these, so treat its label with caution."}}, "eq_sublabels": {"EQ-SameMjCompVer": {"term": "Same compiler and version", "detail": "Equivalent: both built with the same compiler and the same major version. Differences are benign build noise."}, "EQ-SameComp": {"term": "Same compiler, different version", "detail": "Equivalent: same compiler family but a different major version."}, "EQ-DiffComp": {"term": "Different compilers", "detail": "Equivalent: built by different compilers, yet the behaviour still matches."}}, "neq2_families": {"conditionals": {"term": "conditional logic", "detail": "A mutation flipped or removed an if / comparison decision."}, "math": {"term": "arithmetic", "detail": "A mutation changed a maths operator (e.g. + became -)."}, "returns": {"term": "return values", "detail": "A mutation changed what a method returns."}, "calls": {"term": "method calls", "detail": "A mutation removed or altered a method or constructor call."}, "constants": {"term": "constant values", "detail": "A mutation changed an inline constant."}, "increments": {"term": "increments", "detail": "A mutation changed or removed an increment (e.g. i++)."}, "other": {"term": "other mutation", "detail": "An uncategorised mutation."}}, "neqm_families": {"netio": {"term": "network I/O", "detail": "Code that talks to the network — sending or fetching data."}, "fsaccess": {"term": "file access", "detail": "Code that reads, writes, or deletes files."}, "recon": {"term": "reconnaissance", "detail": "Code that probes the environment — OS details, environment variables, the screen."}, "procmem": {"term": "process / memory", "detail": "Code that starts processes or loads native code."}, "reflect": {"term": "reflection", "detail": "Code that loads classes or invokes methods dynamically at runtime."}, "crypto": {"term": "cryptography", "detail": "Code doing hashing, encryption, decryption, or (de)serialisation."}, "obfusc": {"term": "obfuscation", "detail": "Code that hides data using encoding / decoding tricks."}}, "neqm_subcategories": {"exfil": "data exfiltration", "download": "download", "post": "upload / POST", "recon": "network probe", "socket": "raw socket", "load": "class loading", "invoke": "dynamic invocation", "field": "field access", "eval": "script evaluation", "hash": "hashing", "verify": "signature check", "decrypt": "decryption", "deserialise": "deserialisation", "digest": "digest", "writesecret": "secret write", "readsecret": "secret read", "enum": "file enumeration", "del": "file deletion", "exec": "process execution", "nativeload": "native code load", "env": "environment read", "os": "OS information", "decode": "payload decoding", "strsplit": "string splitting", "strconcat": "string joining"}, "features": {"s_access": {"term": "Access-modifier similarity", "detail": "How alike the two classes' access flags are (public, final, abstract, …)."}, "d_name": {"term": "Class-name difference", "detail": "How much the class names differ (character edit distance)."}, "d_supername": {"term": "Parent-class-name difference", "detail": "How much the superclass names differ."}, "d_signature": {"term": "Generic-signature difference", "detail": "How much the classes' generic type signatures differ."}, "s_interfaces": {"term": "Interface similarity", "detail": "Overlap in the interfaces the two classes implement."}, "d_fieldCount": {"term": "Field-count difference", "detail": "Difference in the number of fields."}, "s_fields": {"term": "Field similarity", "detail": "Overlap in the two classes' fields."}, "d_methodCount": {"term": "Method-count difference", "detail": "Difference in the number of methods."}, "s_methodSet": {"term": "Method-set similarity", "detail": "Overlap in the sets of methods the classes define."}, "c_matched": {"term": "Matched methods (count)", "detail": "Number of methods paired one-to-one between the two classes."}, "c_unmatchedMethods": {"term": "Unmatched methods (count)", "detail": "Number of methods with no counterpart in the other class."}, "c_partmatchedMethods": {"term": "Loosely-matched methods (count)", "detail": "Methods that match only approximately, e.g. compiler-renamed lambdas."}, "c_matchedProportion": {"term": "Matched methods (share)", "detail": "Fraction of methods that paired up exactly."}, "c_unmatchedProportion": {"term": "Unmatched methods (share)", "detail": "Fraction of methods with no counterpart."}, "c_partmatchedProportion": {"term": "Loosely-matched (share)", "detail": "Fraction of methods that match only approximately."}, "s_methodVarType": {"term": "Local-variable-type similarity", "detail": "Overlap in the local variable types used across methods."}, "s_methodLdcType": {"term": "Loaded-constant-type similarity", "detail": "Overlap in the types of constants loaded by the code."}, "s_methodInvokeDynType": {"term": "Dynamic-call-type similarity", "detail": "Overlap in invokedynamic call types (lambdas, string concatenation)."}, "d_invocations": {"term": "Call-count difference", "detail": "Difference in the total number of calls made."}, "s_invocations": {"term": "Call similarity", "detail": "Overlap in which calls are made, by call site."}, "d_methodInvocations": {"term": "Per-method call-count difference", "detail": "Difference in how many calls the methods make."}, "s_methodNames": {"term": "Method-name similarity", "detail": "Overlap in method names."}, "s_methodAccess": {"term": "Method access-flag similarity", "detail": "Overlap in method access modifiers."}, "s_methodDescriptors": {"term": "Method-signature similarity", "detail": "Overlap in method parameter and return-type signatures."}, "s_methodCfgNodes": {"term": "Control-flow-node similarity", "detail": "Overlap in the size of methods' control-flow graphs (basic blocks)."}, "s_methodCfgEdges": {"term": "Control-flow-edge similarity", "detail": "Overlap in the number of control-flow transitions between blocks."}, "s_methodCyclomaticComplexity": {"term": "Complexity similarity", "detail": "Overlap in methods' cyclomatic complexity (how many independent branches)."}, "s_methodDtNodes": {"term": "Dominator-tree-node similarity", "detail": "Overlap in dominator-tree size — a fingerprint of control structure."}, "s_methodDtDepth": {"term": "Dominator-tree-depth similarity", "detail": "Overlap in how deeply nested the control structures are."}, "s_methodExceptions": {"term": "Declared-exception similarity", "detail": "Overlap in the exceptions methods declare or handle."}, "s_methodArgCount": {"term": "Argument-count similarity", "detail": "Overlap in how many arguments methods take."}, "s_methodInitialisers": {"term": "Initialiser similarity", "detail": "Overlap in which methods are static/instance initialisers."}, "s_methodConstructors": {"term": "Constructor similarity", "detail": "Overlap in which methods are constructors."}, "s_methodOpcodes": {"term": "Opcode-mix similarity", "detail": "Overlap in the mix of bytecode operations used."}, "d_ins_branch_unconditional": {"term": "Unconditional-jump difference", "detail": "Difference in the count of goto-style jumps."}, "d_ins_branch_conditional": {"term": "Conditional-branch difference", "detail": "Difference in the count of if / comparison branches."}, "d_ins_branch_compound": {"term": "Switch-statement difference", "detail": "Difference in the count of switch (table/lookup) instructions."}, "d_ins_comparison": {"term": "Comparison-op difference", "detail": "Difference in the count of long/float/double comparison instructions."}, "d_ins_load": {"term": "Variable-load difference", "detail": "Difference in the count of load-from-variable instructions."}, "d_ins_store": {"term": "Variable-store difference", "detail": "Difference in the count of store-to-variable instructions."}, "d_ins_const": {"term": "Constant-push difference", "detail": "Difference in the count of constant-loading instructions."}, "d_ins_arith_add": {"term": "Addition-op difference", "detail": "Difference in the count of addition instructions."}, "d_ins_arith_sub": {"term": "Subtraction-op difference", "detail": "Difference in the count of subtraction instructions."}, "d_ins_arith_mul": {"term": "Multiplication-op difference", "detail": "Difference in the count of multiplication instructions."}, "d_ins_arith_div": {"term": "Division-op difference", "detail": "Difference in the count of division instructions."}, "d_ins_arith_rem": {"term": "Remainder-op difference", "detail": "Difference in the count of remainder / modulo instructions."}, "d_ins_type_conversion": {"term": "Type-conversion difference", "detail": "Difference in the count of numeric type-cast instructions."}, "s_insn_records": {"term": "Instruction-level similarity", "detail": "Overlap in individual bytecode instructions (opcode, operands, and where they occur)."}}};
+window.__CASE__ = {
+  "caseId": "example-neq1",
+  "model": "Ensemble (one-vs-rest DT + RF meta)",
+  "evaluatedAt": "2026-07-23 10:14 UTC",
+  "pair": {
+    "left": {
+      "role": "Older version",
+      "class": "/org/apache/commons/codec/digest/DigestUtilsTest.class"
+    },
+    "right": {
+      "role": "Newer version",
+      "class": "/org/apache/commons/codec/digest/DigestUtilsTest.class"
+    }
+  },
+  "prediction": {
+    "sublabel": "NEQ1",
+    "confidence": 0.2563192337926995,
+    "alternatives": [
+      {
+        "sublabel": "EQ-DiffComp",
+        "confidence": 0.0251
+      },
+      {
+        "sublabel": "NEQM-procmem.nativeload.load",
+        "confidence": 0.0226
+      },
+      {
+        "sublabel": "NEQM-fsaccess.enum.listfiles",
+        "confidence": 0.0226
+      }
+    ]
+  },
+  "featureImportances": [
+    {
+      "feature": "c_matchedProportion",
+      "value": 0.4961
+    },
+    {
+      "feature": "c_unmatchedMethods",
+      "value": 0.0034
+    },
+    {
+      "feature": "d_methodInvocations",
+      "value": 0.0004
+    },
+    {
+      "feature": "s_insn_records",
+      "value": 0.0
+    }
+  ],
+  "javapDiff": "@@ -1,8 +1,14 @@\n Compiled from \"DigestUtilsTest.java\"\n public class org.apache.commons.codec.digest.DigestUtilsTest {\n+  private static final java.lang.String EMPTY_STRING;\n+\n   private final byte[] testData;\n \n   private java.io.File testFile;\n+\n+  private java.io.File testRandomAccessFile;\n+\n+  private java.io.RandomAccessFile testRandomAccessFileWrapper;\n \n   public org.apache.commons.codec.digest.DigestUtilsTest();\n     Code:\n@@ -38,6 +44,19 @@\n     Code:\n        0: aload_0\n        1: getfield      # // Field testFile:Ljava/io/File;\n+       4: areturn\n+\n+  java.nio.file.Path getTestPath();\n+    Code:\n+       0: aload_0\n+       1: getfield      # // Field testFile:Ljava/io/File;\n+       4: invokevirtual # // Method java/io/File.toPath:()Ljava/nio/file/Path;\n+       7: areturn\n+\n+  java.io.RandomAccessFile getTestRandomAccessFile();\n+    Code:\n+       0: aload_0\n+       1: getfield      # // Field testRandomAccessFileWrapper:Ljava/io/RandomAccessFile;\n        4: areturn\n \n   public void setUp() throws java.lang.Exception;\n@@ -94,11 +113,67 @@\n       91: invokevirtual # // Method java/lang/Throwable.addSuppressed:(Ljava/lang/Throwable;)V\n       94: aload_1\n       95: athrow\n-      96: return\n+      96: aload_0\n+      97: ldc           # // class org/apache/commons/codec/digest/DigestUtilsTest\n+      99: invokevirtual # // Method java/lang/Class.getName:()Ljava/lang/String;\n+     102: ldc           # // String .dat\n+     104: invokestatic  # // Method java/io/File.createTempFile:(Ljava/lang/String;Ljava/lang/String;)Ljava/io/File;\n+     107: putfield      # // Field testRandomAccessFile:Ljava/io/File;\n+     110: aconst_null\n+     111: astore_1\n+     112: aconst_null\n+     113: astore_2\n+     114: new           # // class java/io/FileOutputStream\n+     117: dup\n+     118: aload_0\n+     119: getfield      # // Field testRandomAccessFile:Ljava/io/File;\n+     122: invokespecial # // Method java/io/FileOutputStream.\"<init>\":(Ljava/io/File;)V\n+     125: astore_3\n+     126: aload_3\n+     127: aload_0\n+     128: getfield      # // Field testData:[B\n+     131: invokevirtual # // Method java/io/FileOutputStream.write:([B)V\n+     134: aload_3\n+     135: ifnull        178\n+     138: aload_3\n+     139: invokevirtual # // Method java/io/FileOutputStream.close:()V\n+     142: goto          178\n+     145: astore_1\n+     146: aload_3\n+     147: ifnull        154\n+     150: aload_3\n+     151: invokevirtual # // Method java/io/FileOutputStream.close:()V\n+     154: aload_1\n+     155: athrow\n+     156: astore_2\n+     157: aload_1\n+     158: ifnonnull     166\n+     161: aload_2\n+     162: astore_1\n+     163: goto          176\n+     166: aload_1\n+     167: aload_2\n+     168: if_acmpeq     176\n+     171: aload_1\n+     172: aload_2\n+     173: invokevirtual # // Method java/lang/Throwable.addSuppressed:(Ljava/lang/Throwable;)V\n+     176: aload_1\n+     177: athrow\n+     178: aload_0\n+     179: new           # // class java/io/RandomAccessFile\n+     182: dup\n+     183: aload_0\n+     184: getfield      # // Field testRandomAccessFile:Ljava/io/File;\n+     187: ldc           # // String rw\n+     189: invokespecial # // Method java/io/RandomAccessFile.\"<init>\":(Ljava/io/File;Ljava/lang/String;)V\n+     192: putfield      # // Field testRandomAccessFileWrapper:Ljava/io/RandomAccessFile;\n+     195: return\n     Exception table:\n        from    to  target type\n           44    52    63   any\n           32    74    74   any\n+         126   134   145   any\n+         114   156   156   any\n \n   public void tearDown();\n     Code:\n@@ -109,7 +184,116 @@\n       10: aload_0\n       11: getfield      # // Field testFile:Ljava/io/File;\n       14: invokevirtual # // Method java/io/File.deleteOnExit:()V\n-      17: return\n+      17: aload_0\n+      18: getfield      # // Field testRandomAccessFile:Ljava/io/File;\n+      21: invokevirtual # // Method java/io/File.delete:()Z\n+      24: ifne          34\n+      27: aload_0\n+      28: getfield      # // Field testRandomAccessFile:Ljava/io/File;\n+      31: invokevirtual # // Method java/io/File.deleteOnExit:()V\n+      34: return\n+\n+  public void testDigestAs() throws java.io.IOException;\n+    Code:\n+       0: ldc           # // String d41d8cd98f00b204e9800998ecf8427e\n+       2: new           # // class org/apache/commons/codec/digest/DigestUtils\n+       5: dup\n+       6: ldc           # // String MD5\n+       8: invokespecial # // Method org/apache/commons/codec/digest/DigestUtils.\"<init>\":(Ljava/lang/String;)V\n+      11: new           # // class java/io/File\n+      14: dup\n+      15: ldc           # // String src/test/resources/empty.bin\n+      17: invokespecial # // Method java/io/File.\"<init>\":(Ljava/lang/String;)V\n+      20: invokevirtual # // Method org/apache/commons/codec/digest/DigestUtils.digestAsHex:(Ljava/io/File;)Ljava/lang/String;\n+      23: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+      26: aconst_null\n+      27: astore_1\n+      28: aconst_null\n+      29: astore_2\n+      30: new           # // class java/io/FileInputStream\n+      33: dup\n+      34: ldc           # // String src/test/resources/empty.bin\n+      36: invokespecial # // Method java/io/FileInputStream.\"<init>\":(Ljava/lang/String;)V\n+      39: astore_3\n+      40: ldc           # // String d41d8cd98f00b204e9800998ecf8427e\n+      42: new           # // class org/apache/commons/codec/digest/DigestUtils\n+      45: dup\n+      46: ldc           # // String MD5\n+      48: invokespecial # // Method org/apache/commons/codec/digest/DigestUtils.\"<init>\":(Ljava/lang/String;)V\n+      51: aload_3\n+      52: invokevirtual # // Method org/apache/commons/codec/digest/DigestUtils.digestAsHex:(Ljava/io/InputStream;)Ljava/lang/String;\n+      55: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+      58: aload_3\n+      59: ifnull        102\n+      62: aload_3\n+      63: invokevirtual # // Method java/io/FileInputStream.close:()V\n+      66: goto          102\n+      69: astore_1\n+      70: aload_3\n+      71: ifnull        78\n+      74: aload_3\n+      75: invokevirtual # // Method java/io/FileInputStream.close:()V\n+      78: aload_1\n+      79: athrow\n+      80: astore_2\n+      81: aload_1\n+      82: ifnonnull     90\n+      85: aload_2\n+      86: astore_1\n+      87: goto          100\n+      90: aload_1\n+      91: aload_2\n+      92: if_acmpeq     100\n+      95: aload_1\n+      96: aload_2\n+      97: invokevirtual # // Method java/lang/Throwable.addSuppressed:(Ljava/lang/Throwable;)V\n+     100: aload_1\n+     101: athrow\n+     102: ldc           # // String src/test/resources/empty.bin\n+     104: iconst_0\n+     105: anewarray     # // class java/lang/String\n+     108: invokestatic  # // Method java/nio/file/Paths.get:(Ljava/lang/String;[Ljava/lang/String;)Ljava/nio/file/Path;\n+     111: invokestatic  # // Method java/nio/file/Files.readAllBytes:(Ljava/nio/file/Path;)[B\n+     114: astore_1\n+     115: ldc           # // String d41d8cd98f00b204e9800998ecf8427e\n+     117: new           # // class org/apache/commons/codec/digest/DigestUtils\n+     120: dup\n+     121: ldc           # // String MD5\n+     123: invokespecial # // Method org/apache/commons/codec/digest/DigestUtils.\"<init>\":(Ljava/lang/String;)V\n+     126: aload_1\n+     127: invokevirtual # // Method org/apache/commons/codec/digest/DigestUtils.digestAsHex:([B)Ljava/lang/String;\n+     130: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+     133: ldc           # // String d41d8cd98f00b204e9800998ecf8427e\n+     135: new           # // class org/apache/commons/codec/digest/DigestUtils\n+     138: dup\n+     139: ldc           # // String MD5\n+     141: invokespecial # // Method org/apache/commons/codec/digest/DigestUtils.\"<init>\":(Ljava/lang/String;)V\n+     144: aload_1\n+     145: invokestatic  # // Method java/nio/ByteBuffer.wrap:([B)Ljava/nio/ByteBuffer;\n+     148: invokevirtual # // Method org/apache/commons/codec/digest/DigestUtils.digestAsHex:(Ljava/nio/ByteBuffer;)Ljava/lang/String;\n+     151: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+     154: return\n+    Exception table:\n+       from    to  target type\n+          40    58    69   any\n+          30    80    80   any\n+\n+  public void testGetMessageDigest();\n+    Code:\n+       0: new           # // class org/apache/commons/codec/digest/DigestUtils\n+       3: dup\n+       4: ldc           # // String MD5\n+       6: invokespecial # // Method org/apache/commons/codec/digest/DigestUtils.\"<init>\":(Ljava/lang/String;)V\n+       9: astore_1\n+      10: aload_1\n+      11: invokevirtual # // Method org/apache/commons/codec/digest/DigestUtils.getMessageDigest:()Ljava/security/MessageDigest;\n+      14: invokestatic  # // Method org/junit/Assert.assertNotNull:(Ljava/lang/Object;)V\n+      17: ldc           # // String MD5\n+      19: aload_1\n+      20: invokevirtual # // Method org/apache/commons/codec/digest/DigestUtils.getMessageDigest:()Ljava/security/MessageDigest;\n+      23: invokevirtual # // Method java/security/MessageDigest.getAlgorithm:()Ljava/lang/String;\n+      26: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+      29: return\n \n   public void testInternalNoSuchAlgorithmException();\n     Code:\n@@ -117,6 +301,19 @@\n        2: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.getDigest:(Ljava/lang/String;)Ljava/security/MessageDigest;\n        5: pop\n        6: return\n+\n+  public void testIsAvailable();\n+    Code:\n+       0: ldc           # // String MD5\n+       2: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.isAvailable:(Ljava/lang/String;)Z\n+       5: invokestatic  # // Method org/junit/Assert.assertTrue:(Z)V\n+       8: ldc           # // String FOO\n+      10: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.isAvailable:(Ljava/lang/String;)Z\n+      13: invokestatic  # // Method org/junit/Assert.assertFalse:(Z)V\n+      16: aconst_null\n+      17: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.isAvailable:(Ljava/lang/String;)Z\n+      20: invokestatic  # // Method org/junit/Assert.assertFalse:(Z)V\n+      23: return\n \n   public void testMd2Hex() throws java.io.IOException;\n     Code:\n@@ -141,76 +338,76 @@\n       44: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.md2Hex:(Ljava/lang/String;)Ljava/lang/String;\n       47: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n       50: ldc           # // String da33def2a42df13975352846c30338cd\n-      52: ldc           # // String ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789\n-      54: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.md2Hex:(Ljava/lang/String;)Ljava/lang/String;\n-      57: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n-      60: ldc           # // String d5976f79d83d3a0dc9806c3c66f3efd8\n-      62: ldc           # // String 12345678901234567890123456789012345678901234567890123456789012345678901234567890\n-      64: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.md2Hex:(Ljava/lang/String;)Ljava/lang/String;\n-      67: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n-      70: aload_0\n-      71: getfield      # // Field testData:[B\n-      74: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.md2Hex:([B)Ljava/lang/String;\n-      77: new           # // class java/io/ByteArrayInputStream\n-      80: dup\n-      81: aload_0\n-      82: getfield      # // Field testData:[B\n-      85: invokespecial # // Method java/io/ByteArrayInputStream.\"<init>\":([B)V\n-      88: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.md2Hex:(Ljava/io/InputStream;)Ljava/lang/String;\n-      91: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n-      94: return\n+      52: ldc_w         # // String ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789\n+      55: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.md2Hex:(Ljava/lang/String;)Ljava/lang/String;\n+      58: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+      61: ldc_w         # // String d5976f79d83d3a0dc9806c3c66f3efd8\n+      64: ldc_w         # // String 12345678901234567890123456789012345678901234567890123456789012345678901234567890\n+      67: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.md2Hex:(Ljava/lang/String;)Ljava/lang/String;\n+      70: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+      73: aload_0\n+      74: getfield      # // Field testData:[B\n+      77: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.md2Hex:([B)Ljava/lang/String;\n+      80: new           # // class java/io/ByteArrayInputStream\n+      83: dup\n+      84: aload_0\n+      85: getfield      # // Field testData:[B\n+      88: invokespecial # // Method java/io/ByteArrayInputStream.\"<init>\":([B)V\n+      91: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.md2Hex:(Ljava/io/InputStream;)Ljava/lang/String;\n+      94: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+      97: return\n \n   public void testMd2HexLength();\n     Code:\n-       0: ldc           # // String this is some string that is longer than 32 characters\n-       2: astore_1\n-       3: aload_1\n-       4: invokestatic  # // Method org/apache/commons/codec/binary/StringUtils.getBytesUtf8:(Ljava/lang/String;)[B\n-       7: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.md2Hex:([B)Ljava/lang/String;\n-      10: astore_2\n-      11: ldc2_w        # // long 32l\n-      14: aload_2\n-      15: invokevirtual # // Method java/lang/String.length:()I\n-      18: i2l\n-      19: invokestatic  # // Method org/junit/Assert.assertEquals:(JJ)V\n-      22: ldc           # // String length < 32\n+       0: ldc_w         # // String this is some string that is longer than 32 characters\n+       3: astore_1\n+       4: aload_1\n+       5: invokestatic  # // Method org/apache/commons/codec/binary/StringUtils.getBytesUtf8:(Ljava/lang/String;)[B\n+       8: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.md2Hex:([B)Ljava/lang/String;\n+      11: astore_2\n+      12: ldc2_w        # // long 32l\n+      15: aload_2\n+      16: invokevirtual # // Method java/lang/String.length:()I\n+      19: i2l\n+      20: invokestatic  # // Method org/junit/Assert.assertEquals:(JJ)V\n+      23: ldc_w         # // String length < 32\n+      26: astore_1\n+      27: aload_1\n+      28: invokestatic  # // Method org/apache/commons/codec/binary/StringUtils.getBytesUtf8:(Ljava/lang/String;)[B\n+      31: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.md2Hex:([B)Ljava/lang/String;\n+      34: astore_2\n+      35: ldc2_w        # // long 32l\n+      38: aload_2\n+      39: invokevirtual # // Method java/lang/String.length:()I\n+      42: i2l\n+      43: invokestatic  # // Method org/junit/Assert.assertEquals:(JJ)V\n+      46: return\n+\n+  public void testMd2Length();\n+    Code:\n+       0: ldc_w         # // String this is some string that is longer than 16 characters\n+       3: astore_1\n+       4: aload_1\n+       5: invokestatic  # // Method org/apache/commons/codec/binary/StringUtils.getBytesUtf8:(Ljava/lang/String;)[B\n+       8: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.md2:([B)[B\n+      11: astore_2\n+      12: ldc2_w        # // long 16l\n+      15: aload_2\n+      16: arraylength\n+      17: i2l\n+      18: invokestatic  # // Method org/junit/Assert.assertEquals:(JJ)V\n+      21: ldc_w         # // String length < 16\n       24: astore_1\n       25: aload_1\n       26: invokestatic  # // Method org/apache/commons/codec/binary/StringUtils.getBytesUtf8:(Ljava/lang/String;)[B\n-      29: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.md2Hex:([B)Ljava/lang/String;\n+      29: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.md2:([B)[B\n       32: astore_2\n-      33: ldc2_w        # // long 32l\n+      33: ldc2_w        # // long 16l\n       36: aload_2\n-      37: invokevirtual # // Method java/lang/String.length:()I\n-      40: i2l\n-      41: invokestatic  # // Method org/junit/Assert.assertEquals:(JJ)V\n-      44: return\n-\n-  public void testMd2Length();\n-    Code:\n-       0: ldc           # // String this is some string that is longer than 16 characters\n-       2: astore_1\n-       3: aload_1\n-       4: invokestatic  # // Method org/apache/commons/codec/binary/StringUtils.getBytesUtf8:(Ljava/lang/String;)[B\n-       7: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.md2:([B)[B\n-      10: astore_2\n-      11: ldc2_w        # // long 16l\n-      14: aload_2\n-      15: arraylength\n-      16: i2l\n-      17: invokestatic  # // Method org/junit/Assert.assertEquals:(JJ)V\n-      20: ldc           # // String length < 16\n-      22: astore_1\n-      23: aload_1\n-      24: invokestatic  # // Method org/apache/commons/codec/binary/StringUtils.getBytesUtf8:(Ljava/lang/String;)[B\n-      27: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.md2:([B)[B\n-      30: astore_2\n-      31: ldc2_w        # // long 16l\n-      34: aload_2\n-      35: arraylength\n-      36: i2l\n-      37: invokestatic  # // Method org/junit/Assert.assertEquals:(JJ)V\n-      40: return\n+      37: arraylength\n+      38: i2l\n+      39: invokestatic  # // Method org/junit/Assert.assertEquals:(JJ)V\n+      42: return\n \n   public void testMd5Hex() throws java.io.IOException;\n     Code:\n@@ -218,233 +415,332 @@\n        2: ldc           # // String\n        4: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.md5Hex:(Ljava/lang/String;)Ljava/lang/String;\n        7: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n-      10: ldc           # // String 0cc175b9c0f1b6a831c399e269772661\n-      12: ldc           # // String a\n-      14: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.md5Hex:(Ljava/lang/String;)Ljava/lang/String;\n-      17: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n-      20: ldc           # // String 900150983cd24fb0d6963f7d28e17f72\n-      22: ldc           # // String abc\n-      24: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.md5Hex:(Ljava/lang/String;)Ljava/lang/String;\n-      27: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n-      30: ldc           # // String f96b697d7cb7938d525a2f31aaf161d0\n-      32: ldc           # // String message digest\n-      34: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.md5Hex:(Ljava/lang/String;)Ljava/lang/String;\n-      37: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n-      40: ldc           # // String c3fcd3d76192e4007dfb496cca67e13b\n-      42: ldc           # // String abcdefghijklmnopqrstuvwxyz\n-      44: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.md5Hex:(Ljava/lang/String;)Ljava/lang/String;\n-      47: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n-      50: ldc           # // String d174ab98d277d9f5a5611c2c9f419d9f\n-      52: ldc           # // String ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789\n-      54: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.md5Hex:(Ljava/lang/String;)Ljava/lang/String;\n-      57: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n-      60: ldc           # // String 57edf4a22be3c955ac49da2e2107b67a\n-      62: ldc           # // String 12345678901234567890123456789012345678901234567890123456789012345678901234567890\n-      64: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.md5Hex:(Ljava/lang/String;)Ljava/lang/String;\n-      67: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n-      70: aload_0\n-      71: getfield      # // Field testData:[B\n-      74: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.md5Hex:([B)Ljava/lang/String;\n-      77: new           # // class java/io/ByteArrayInputStream\n-      80: dup\n-      81: aload_0\n-      82: getfield      # // Field testData:[B\n-      85: invokespecial # // Method java/io/ByteArrayInputStream.\"<init>\":([B)V\n-      88: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.md5Hex:(Ljava/io/InputStream;)Ljava/lang/String;\n-      91: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n-      94: return\n+      10: ldc_w         # // String 0cc175b9c0f1b6a831c399e269772661\n+      13: ldc           # // String a\n+      15: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.md5Hex:(Ljava/lang/String;)Ljava/lang/String;\n+      18: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+      21: ldc_w         # // String 900150983cd24fb0d6963f7d28e17f72\n+      24: ldc           # // String abc\n+      26: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.md5Hex:(Ljava/lang/String;)Ljava/lang/String;\n+      29: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+      32: ldc_w         # // String f96b697d7cb7938d525a2f31aaf161d0\n+      35: ldc           # // String message digest\n+      37: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.md5Hex:(Ljava/lang/String;)Ljava/lang/String;\n+      40: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+      43: ldc_w         # // String c3fcd3d76192e4007dfb496cca67e13b\n+      46: ldc           # // String abcdefghijklmnopqrstuvwxyz\n+      48: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.md5Hex:(Ljava/lang/String;)Ljava/lang/String;\n+      51: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+      54: ldc_w         # // String d174ab98d277d9f5a5611c2c9f419d9f\n+      57: ldc_w         # // String ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789\n+      60: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.md5Hex:(Ljava/lang/String;)Ljava/lang/String;\n+      63: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+      66: ldc_w         # // String 57edf4a22be3c955ac49da2e2107b67a\n+      69: ldc_w         # // String 12345678901234567890123456789012345678901234567890123456789012345678901234567890\n+      72: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.md5Hex:(Ljava/lang/String;)Ljava/lang/String;\n+      75: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+      78: aload_0\n+      79: getfield      # // Field testData:[B\n+      82: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.md5Hex:([B)Ljava/lang/String;\n+      85: new           # // class java/io/ByteArrayInputStream\n+      88: dup\n+      89: aload_0\n+      90: getfield      # // Field testData:[B\n+      93: invokespecial # // Method java/io/ByteArrayInputStream.\"<init>\":([B)V\n+      96: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.md5Hex:(Ljava/io/InputStream;)Ljava/lang/String;\n+      99: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+     102: return\n \n   public void testMd5HexLengthForBytes();\n     Code:\n-       0: ldc           # // String this is some string that is longer than 32 characters\n-       2: astore_1\n-       3: aload_1\n-       4: invokestatic  # // Method org/apache/commons/codec/binary/StringUtils.getBytesUtf8:(Ljava/lang/String;)[B\n-       7: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.md5Hex:([B)Ljava/lang/String;\n-      10: astore_2\n-      11: ldc2_w        # // long 32l\n-      14: aload_2\n-      15: invokevirtual # // Method java/lang/String.length:()I\n-      18: i2l\n-      19: invokestatic  # // Method org/junit/Assert.assertEquals:(JJ)V\n-      22: ldc           # // String length < 32\n+       0: ldc_w         # // String this is some string that is longer than 32 characters\n+       3: astore_1\n+       4: aload_1\n+       5: invokestatic  # // Method org/apache/commons/codec/binary/StringUtils.getBytesUtf8:(Ljava/lang/String;)[B\n+       8: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.md5Hex:([B)Ljava/lang/String;\n+      11: astore_2\n+      12: ldc2_w        # // long 32l\n+      15: aload_2\n+      16: invokevirtual # // Method java/lang/String.length:()I\n+      19: i2l\n+      20: invokestatic  # // Method org/junit/Assert.assertEquals:(JJ)V\n+      23: ldc_w         # // String length < 32\n+      26: astore_1\n+      27: aload_1\n+      28: invokestatic  # // Method org/apache/commons/codec/binary/StringUtils.getBytesUtf8:(Ljava/lang/String;)[B\n+      31: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.md5Hex:([B)Ljava/lang/String;\n+      34: astore_2\n+      35: ldc2_w        # // long 32l\n+      38: aload_2\n+      39: invokevirtual # // Method java/lang/String.length:()I\n+      42: i2l\n+      43: invokestatic  # // Method org/junit/Assert.assertEquals:(JJ)V\n+      46: return\n+\n+  public void testMd5LengthForBytes();\n+    Code:\n+       0: ldc_w         # // String this is some string that is longer than 16 characters\n+       3: astore_1\n+       4: aload_1\n+       5: invokestatic  # // Method org/apache/commons/codec/binary/StringUtils.getBytesUtf8:(Ljava/lang/String;)[B\n+       8: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.md5:([B)[B\n+      11: astore_2\n+      12: ldc2_w        # // long 16l\n+      15: aload_2\n+      16: arraylength\n+      17: i2l\n+      18: invokestatic  # // Method org/junit/Assert.assertEquals:(JJ)V\n+      21: ldc_w         # // String length < 16\n       24: astore_1\n       25: aload_1\n       26: invokestatic  # // Method org/apache/commons/codec/binary/StringUtils.getBytesUtf8:(Ljava/lang/String;)[B\n-      29: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.md5Hex:([B)Ljava/lang/String;\n+      29: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.md5:([B)[B\n       32: astore_2\n-      33: ldc2_w        # // long 32l\n+      33: ldc2_w        # // long 16l\n       36: aload_2\n-      37: invokevirtual # // Method java/lang/String.length:()I\n-      40: i2l\n-      41: invokestatic  # // Method org/junit/Assert.assertEquals:(JJ)V\n-      44: return\n-\n-  public void testMd5LengthForBytes();\n-    Code:\n-       0: ldc           # // String this is some string that is longer than 16 characters\n-       2: astore_1\n-       3: aload_1\n-       4: invokestatic  # // Method org/apache/commons/codec/binary/StringUtils.getBytesUtf8:(Ljava/lang/String;)[B\n-       7: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.md5:([B)[B\n-      10: astore_2\n-      11: ldc2_w        # // long 16l\n-      14: aload_2\n-      15: arraylength\n-      16: i2l\n-      17: invokestatic  # // Method org/junit/Assert.assertEquals:(JJ)V\n-      20: ldc           # // String length < 16\n-      22: astore_1\n-      23: aload_1\n-      24: invokestatic  # // Method org/apache/commons/codec/binary/StringUtils.getBytesUtf8:(Ljava/lang/String;)[B\n-      27: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.md5:([B)[B\n-      30: astore_2\n-      31: ldc2_w        # // long 16l\n-      34: aload_2\n-      35: arraylength\n-      36: i2l\n-      37: invokestatic  # // Method org/junit/Assert.assertEquals:(JJ)V\n-      40: return\n+      37: arraylength\n+      38: i2l\n+      39: invokestatic  # // Method org/junit/Assert.assertEquals:(JJ)V\n+      42: return\n \n   public void testSha1Hex() throws java.io.IOException;\n     Code:\n-       0: ldc           # // String a9993e364706816aba3e25717850c26c9cd0d89d\n-       2: ldc           # // String abc\n-       4: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha1Hex:(Ljava/lang/String;)Ljava/lang/String;\n-       7: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n-      10: ldc           # // String a9993e364706816aba3e25717850c26c9cd0d89d\n-      12: ldc           # // String abc\n-      14: invokestatic  # // Method org/apache/commons/codec/binary/StringUtils.getBytesUtf8:(Ljava/lang/String;)[B\n-      17: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha1Hex:([B)Ljava/lang/String;\n-      20: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n-      23: ldc           # // String 84983e441c3bd26ebaae4aa1f95129e5e54670f1\n-      25: ldc           # // String abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq\n-      27: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha1Hex:(Ljava/lang/String;)Ljava/lang/String;\n-      30: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n-      33: aload_0\n-      34: getfield      # // Field testData:[B\n-      37: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha1Hex:([B)Ljava/lang/String;\n-      40: new           # // class java/io/ByteArrayInputStream\n-      43: dup\n-      44: aload_0\n-      45: getfield      # // Field testData:[B\n-      48: invokespecial # // Method java/io/ByteArrayInputStream.\"<init>\":([B)V\n-      51: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha1Hex:(Ljava/io/InputStream;)Ljava/lang/String;\n-      54: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n-      57: return\n+       0: ldc_w         # // String a9993e364706816aba3e25717850c26c9cd0d89d\n+       3: ldc           # // String abc\n+       5: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha1Hex:(Ljava/lang/String;)Ljava/lang/String;\n+       8: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+      11: ldc_w         # // String a9993e364706816aba3e25717850c26c9cd0d89d\n+      14: ldc           # // String abc\n+      16: invokestatic  # // Method org/apache/commons/codec/binary/StringUtils.getBytesUtf8:(Ljava/lang/String;)[B\n+      19: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha1Hex:([B)Ljava/lang/String;\n+      22: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+      25: ldc_w         # // String 84983e441c3bd26ebaae4aa1f95129e5e54670f1\n+      28: ldc_w         # // String abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq\n+      31: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha1Hex:(Ljava/lang/String;)Ljava/lang/String;\n+      34: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+      37: aload_0\n+      38: getfield      # // Field testData:[B\n+      41: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha1Hex:([B)Ljava/lang/String;\n+      44: new           # // class java/io/ByteArrayInputStream\n+      47: dup\n+      48: aload_0\n+      49: getfield      # // Field testData:[B\n+      52: invokespecial # // Method java/io/ByteArrayInputStream.\"<init>\":([B)V\n+      55: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha1Hex:(Ljava/io/InputStream;)Ljava/lang/String;\n+      58: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+      61: return\n \n   public void testSha1UpdateWithByteArray();\n     Code:\n        0: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.getSha1Digest:()Ljava/security/MessageDigest;\n        3: astore_1\n        4: aload_1\n-       5: ldc           # // String C\\'est un homme qui rentre dans un caf\u00e9, et plouf\n-       7: invokevirtual # // Method java/lang/String.getBytes:()[B\n-      10: invokevirtual # // Method java/security/MessageDigest.update:([B)V\n-      13: aload_1\n-      14: ldc_w         # // String C\\'est un homme, c\\'est qu\\'une t\u00eate, on lui offre un cadeau: \\'oh... encore un chapeau!\\'\n-      17: invokevirtual # // Method java/lang/String.getBytes:()[B\n-      20: invokevirtual # // Method java/security/MessageDigest.update:([B)V\n-      23: aload_1\n-      24: invokevirtual # // Method java/security/MessageDigest.digest:()[B\n-      27: invokestatic  # // Method org/apache/commons/codec/binary/Hex.encodeHexString:([B)Ljava/lang/String;\n-      30: astore_2\n-      31: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.getSha1Digest:()Ljava/security/MessageDigest;\n-      34: astore_1\n-      35: aload_1\n-      36: ldc           # // String C\\'est un homme qui rentre dans un caf\u00e9, et plouf\n-      38: invokevirtual # // Method java/lang/String.getBytes:()[B\n-      41: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.updateDigest:(Ljava/security/MessageDigest;[B)Ljava/security/MessageDigest;\n-      44: pop\n-      45: aload_1\n-      46: ldc_w         # // String C\\'est un homme, c\\'est qu\\'une t\u00eate, on lui offre un cadeau: \\'oh... encore un chapeau!\\'\n-      49: invokevirtual # // Method java/lang/String.getBytes:()[B\n-      52: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.updateDigest:(Ljava/security/MessageDigest;[B)Ljava/security/MessageDigest;\n-      55: pop\n-      56: aload_1\n-      57: invokevirtual # // Method java/security/MessageDigest.digest:()[B\n-      60: invokestatic  # // Method org/apache/commons/codec/binary/Hex.encodeHexString:([B)Ljava/lang/String;\n-      63: astore_3\n-      64: aload_2\n-      65: aload_3\n-      66: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n-      69: return\n+       5: ldc_w         # // String C\\'est un homme qui rentre dans un caf\u00e9, et plouf\n+       8: invokevirtual # // Method java/lang/String.getBytes:()[B\n+      11: invokevirtual # // Method java/security/MessageDigest.update:([B)V\n+      14: aload_1\n+      15: ldc_w         # // String C\\'est un homme, c\\'est qu\\'une t\u00eate, on lui offre un cadeau: \\'oh... encore un chapeau!\\'\n+      18: invokevirtual # // Method java/lang/String.getBytes:()[B\n+      21: invokevirtual # // Method java/security/MessageDigest.update:([B)V\n+      24: aload_1\n+      25: invokevirtual # // Method java/security/MessageDigest.digest:()[B\n+      28: invokestatic  # // Method org/apache/commons/codec/binary/Hex.encodeHexString:([B)Ljava/lang/String;\n+      31: astore_2\n+      32: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.getSha1Digest:()Ljava/security/MessageDigest;\n+      35: astore_1\n+      36: aload_1\n+      37: ldc_w         # // String C\\'est un homme qui rentre dans un caf\u00e9, et plouf\n+      40: invokevirtual # // Method java/lang/String.getBytes:()[B\n+      43: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.updateDigest:(Ljava/security/MessageDigest;[B)Ljava/security/MessageDigest;\n+      46: pop\n+      47: aload_1\n+      48: ldc_w         # // String C\\'est un homme, c\\'est qu\\'une t\u00eate, on lui offre un cadeau: \\'oh... encore un chapeau!\\'\n+      51: invokevirtual # // Method java/lang/String.getBytes:()[B\n+      54: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.updateDigest:(Ljava/security/MessageDigest;[B)Ljava/security/MessageDigest;\n+      57: pop\n+      58: aload_1\n+      59: invokevirtual # // Method java/security/MessageDigest.digest:()[B\n+      62: invokestatic  # // Method org/apache/commons/codec/binary/Hex.encodeHexString:([B)Ljava/lang/String;\n+      65: astore_3\n+      66: aload_2\n+      67: aload_3\n+      68: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+      71: return\n \n   public void testSha1UpdateWithByteBuffer();\n     Code:\n        0: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.getSha1Digest:()Ljava/security/MessageDigest;\n        3: astore_1\n        4: aload_1\n-       5: ldc           # // String C\\'est un homme qui rentre dans un caf\u00e9, et plouf\n-       7: invokevirtual # // Method java/lang/String.getBytes:()[B\n-      10: invokevirtual # // Method java/security/MessageDigest.update:([B)V\n-      13: aload_1\n-      14: ldc_w         # // String C\\'est un homme, c\\'est qu\\'une t\u00eate, on lui offre un cadeau: \\'oh... encore un chapeau!\\'\n-      17: invokevirtual # // Method java/lang/String.getBytes:()[B\n-      20: invokevirtual # // Method java/security/MessageDigest.update:([B)V\n-      23: aload_1\n-      24: invokevirtual # // Method java/security/MessageDigest.digest:()[B\n-      27: invokestatic  # // Method org/apache/commons/codec/binary/Hex.encodeHexString:([B)Ljava/lang/String;\n-      30: astore_2\n-      31: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.getSha1Digest:()Ljava/security/MessageDigest;\n-      34: astore_1\n-      35: aload_1\n-      36: ldc           # // String C\\'est un homme qui rentre dans un caf\u00e9, et plouf\n-      38: invokevirtual # // Method java/lang/String.getBytes:()[B\n-      41: invokestatic  # // Method java/nio/ByteBuffer.wrap:([B)Ljava/nio/ByteBuffer;\n-      44: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.updateDigest:(Ljava/security/MessageDigest;Ljava/nio/ByteBuffer;)Ljava/security/MessageDigest;\n-      47: pop\n-      48: aload_1\n-      49: ldc_w         # // String C\\'est un homme, c\\'est qu\\'une t\u00eate, on lui offre un cadeau: \\'oh... encore un chapeau!\\'\n-      52: invokevirtual # // Method java/lang/String.getBytes:()[B\n-      55: invokestatic  # // Method java/nio/ByteBuffer.wrap:([B)Ljava/nio/ByteBuffer;\n-      58: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.updateDigest:(Ljava/security/MessageDigest;Ljava/nio/ByteBuffer;)Ljava/security/MessageDigest;\n-      61: pop\n-      62: aload_1\n-      63: invokevirtual # // Method java/security/MessageDigest.digest:()[B\n-      66: invokestatic  # // Method org/apache/commons/codec/binary/Hex.encodeHexString:([B)Ljava/lang/String;\n-      69: astore_3\n-      70: aload_2\n-      71: aload_3\n-      72: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n-      75: return\n+       5: ldc_w         # // String C\\'est un homme qui rentre dans un caf\u00e9, et plouf\n+       8: invokevirtual # // Method java/lang/String.getBytes:()[B\n+      11: invokevirtual # // Method java/security/MessageDigest.update:([B)V\n+      14: aload_1\n+      15: ldc_w         # // String C\\'est un homme, c\\'est qu\\'une t\u00eate, on lui offre un cadeau: \\'oh... encore un chapeau!\\'\n+      18: invokevirtual # // Method java/lang/String.getBytes:()[B\n+      21: invokevirtual # // Method java/security/MessageDigest.update:([B)V\n+      24: aload_1\n+      25: invokevirtual # // Method java/security/MessageDigest.digest:()[B\n+      28: invokestatic  # // Method org/apache/commons/codec/binary/Hex.encodeHexString:([B)Ljava/lang/String;\n+      31: astore_2\n+      32: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.getSha1Digest:()Ljava/security/MessageDigest;\n+      35: astore_1\n+      36: aload_1\n+      37: ldc_w         # // String C\\'est un homme qui rentre dans un caf\u00e9, et plouf\n+      40: invokevirtual # // Method java/lang/String.getBytes:()[B\n+      43: invokestatic  # // Method java/nio/ByteBuffer.wrap:([B)Ljava/nio/ByteBuffer;\n+      46: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.updateDigest:(Ljava/security/MessageDigest;Ljava/nio/ByteBuffer;)Ljava/security/MessageDigest;\n+      49: pop\n+      50: aload_1\n+      51: ldc_w         # // String C\\'est un homme, c\\'est qu\\'une t\u00eate, on lui offre un cadeau: \\'oh... encore un chapeau!\\'\n+      54: invokevirtual # // Method java/lang/String.getBytes:()[B\n+      57: invokestatic  # // Method java/nio/ByteBuffer.wrap:([B)Ljava/nio/ByteBuffer;\n+      60: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.updateDigest:(Ljava/security/MessageDigest;Ljava/nio/ByteBuffer;)Ljava/security/MessageDigest;\n+      63: pop\n+      64: aload_1\n+      65: invokevirtual # // Method java/security/MessageDigest.digest:()[B\n+      68: invokestatic  # // Method org/apache/commons/codec/binary/Hex.encodeHexString:([B)Ljava/lang/String;\n+      71: astore_3\n+      72: aload_2\n+      73: aload_3\n+      74: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+      77: return\n \n   public void testSha1UpdateWithString();\n     Code:\n        0: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.getSha1Digest:()Ljava/security/MessageDigest;\n        3: astore_1\n        4: aload_1\n-       5: ldc           # // String C\\'est un homme qui rentre dans un caf\u00e9, et plouf\n-       7: invokestatic  # // Method org/apache/commons/codec/binary/StringUtils.getBytesUtf8:(Ljava/lang/String;)[B\n-      10: invokevirtual # // Method java/security/MessageDigest.update:([B)V\n-      13: aload_1\n-      14: ldc_w         # // String C\\'est un homme, c\\'est qu\\'une t\u00eate, on lui offre un cadeau: \\'oh... encore un chapeau!\\'\n-      17: invokestatic  # // Method org/apache/commons/codec/binary/StringUtils.getBytesUtf8:(Ljava/lang/String;)[B\n-      20: invokevirtual # // Method java/security/MessageDigest.update:([B)V\n-      23: aload_1\n-      24: invokevirtual # // Method java/security/MessageDigest.digest:()[B\n-      27: invokestatic  # // Method org/apache/commons/codec/binary/Hex.encodeHexString:([B)Ljava/lang/String;\n-      30: astore_2\n-      31: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.getSha1Digest:()Ljava/security/MessageDigest;\n-      34: astore_1\n-      35: aload_1\n-      36: ldc           # // String C\\'est un homme qui rentre dans un caf\u00e9, et plouf\n-      38: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.updateDigest:(Ljava/security/MessageDigest;Ljava/lang/String;)Ljava/security/MessageDigest;\n-      41: pop\n-      42: aload_1\n-      43: ldc_w         # // String C\\'est un homme, c\\'est qu\\'une t\u00eate, on lui offre un cadeau: \\'oh... encore un chapeau!\\'\n-      46: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.updateDigest:(Ljava/security/MessageDigest;Ljava/lang/String;)Ljava/security/MessageDigest;\n-      49: pop\n-      50: aload_1\n-      51: invokevirtual # // Method java/security/MessageDigest.digest:()[B\n-      54: invokestatic  # // Method org/apache/commons/codec/binary/Hex.encodeHexString:([B)Ljava/lang/String;\n-      57: astore_3\n-      58: aload_2\n-      59: aload_3\n-      60: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n-      63: return\n-\n-  public void testSha224();\n+       5: ldc_w         # // String C\\'est un homme qui rentre dans un caf\u00e9, et plouf\n+       8: invokestatic  # // Method org/apache/commons/codec/binary/StringUtils.getBytesUtf8:(Ljava/lang/String;)[B\n+      11: invokevirtual # // Method java/security/MessageDigest.update:([B)V\n+      14: aload_1\n+      15: ldc_w         # // String C\\'est un homme, c\\'est qu\\'une t\u00eate, on lui offre un cadeau: \\'oh... encore un chapeau!\\'\n+      18: invokestatic  # // Method org/apache/commons/codec/binary/StringUtils.getBytesUtf8:(Ljava/lang/String;)[B\n+      21: invokevirtual # // Method java/security/MessageDigest.update:([B)V\n+      24: aload_1\n+      25: invokevirtual # // Method java/security/MessageDigest.digest:()[B\n+      28: invokestatic  # // Method org/apache/commons/codec/binary/Hex.encodeHexString:([B)Ljava/lang/String;\n+      31: astore_2\n+      32: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.getSha1Digest:()Ljava/security/MessageDigest;\n+      35: astore_1\n+      36: aload_1\n+      37: ldc_w         # // String C\\'est un homme qui rentre dans un caf\u00e9, et plouf\n+      40: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.updateDigest:(Ljava/security/MessageDigest;Ljava/lang/String;)Ljava/security/MessageDigest;\n+      43: pop\n+      44: aload_1\n+      45: ldc_w         # // String C\\'est un homme, c\\'est qu\\'une t\u00eate, on lui offre un cadeau: \\'oh... encore un chapeau!\\'\n+      48: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.updateDigest:(Ljava/security/MessageDigest;Ljava/lang/String;)Ljava/security/MessageDigest;\n+      51: pop\n+      52: aload_1\n+      53: invokevirtual # // Method java/security/MessageDigest.digest:()[B\n+      56: invokestatic  # // Method org/apache/commons/codec/binary/Hex.encodeHexString:([B)Ljava/lang/String;\n+      59: astore_3\n+      60: aload_2\n+      61: aload_3\n+      62: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+      65: return\n+\n+  public void testSha224_FileAsHex() throws java.io.IOException;\n+    Code:\n+       0: aload_0\n+       1: invokespecial # // Method assumeJava8:()V\n+       4: new           # // class org/apache/commons/codec/digest/DigestUtils\n+       7: dup\n+       8: ldc_w         # // String SHA-224\n+      11: invokespecial # // Method org/apache/commons/codec/digest/DigestUtils.\"<init>\":(Ljava/lang/String;)V\n+      14: astore_1\n+      15: ldc_w         # // String d14a028c2a3a2bc9476102bb288234c415a2b01f828ea62ac5b3e42f\n+      18: aload_1\n+      19: new           # // class java/io/File\n+      22: dup\n+      23: ldc           # // String src/test/resources/empty.bin\n+      25: invokespecial # // Method java/io/File.\"<init>\":(Ljava/lang/String;)V\n+      28: invokevirtual # // Method org/apache/commons/codec/digest/DigestUtils.digestAsHex:(Ljava/io/File;)Ljava/lang/String;\n+      31: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+      34: aconst_null\n+      35: astore_2\n+      36: aconst_null\n+      37: astore_3\n+      38: new           # // class java/io/FileInputStream\n+      41: dup\n+      42: ldc           # // String src/test/resources/empty.bin\n+      44: invokespecial # // Method java/io/FileInputStream.\"<init>\":(Ljava/lang/String;)V\n+      47: astore        4\n+      49: ldc_w         # // String d14a028c2a3a2bc9476102bb288234c415a2b01f828ea62ac5b3e42f\n+      52: aload_1\n+      53: aload         4\n+      55: invokevirtual # // Method org/apache/commons/codec/digest/DigestUtils.digestAsHex:(Ljava/io/InputStream;)Ljava/lang/String;\n+      58: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+      61: aload         4\n+      63: ifnull        109\n+      66: aload         4\n+      68: invokevirtual # // Method java/io/FileInputStream.close:()V\n+      71: goto          109\n+      74: astore_2\n+      75: aload         4\n+      77: ifnull        85\n+      80: aload         4\n+      82: invokevirtual # // Method java/io/FileInputStream.close:()V\n+      85: aload_2\n+      86: athrow\n+      87: astore_3\n+      88: aload_2\n+      89: ifnonnull     97\n+      92: aload_3\n+      93: astore_2\n+      94: goto          107\n+      97: aload_2\n+      98: aload_3\n+      99: if_acmpeq     107\n+     102: aload_2\n+     103: aload_3\n+     104: invokevirtual # // Method java/lang/Throwable.addSuppressed:(Ljava/lang/Throwable;)V\n+     107: aload_2\n+     108: athrow\n+     109: ldc           # // String src/test/resources/empty.bin\n+     111: iconst_0\n+     112: anewarray     # // class java/lang/String\n+     115: invokestatic  # // Method java/nio/file/Paths.get:(Ljava/lang/String;[Ljava/lang/String;)Ljava/nio/file/Path;\n+     118: invokestatic  # // Method java/nio/file/Files.readAllBytes:(Ljava/nio/file/Path;)[B\n+     121: astore_2\n+     122: ldc_w         # // String d14a028c2a3a2bc9476102bb288234c415a2b01f828ea62ac5b3e42f\n+     125: aload_1\n+     126: aload_2\n+     127: invokevirtual # // Method org/apache/commons/codec/digest/DigestUtils.digestAsHex:([B)Ljava/lang/String;\n+     130: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+     133: ldc_w         # // String d14a028c2a3a2bc9476102bb288234c415a2b01f828ea62ac5b3e42f\n+     136: aload_1\n+     137: aload_2\n+     138: invokestatic  # // Method java/nio/ByteBuffer.wrap:([B)Ljava/nio/ByteBuffer;\n+     141: invokevirtual # // Method org/apache/commons/codec/digest/DigestUtils.digestAsHex:(Ljava/nio/ByteBuffer;)Ljava/lang/String;\n+     144: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+     147: return\n+    Exception table:\n+       from    to  target type\n+          49    61    74   any\n+          38    87    87   any\n+\n+  public void testSha224_PathAsHex() throws java.io.IOException;\n+    Code:\n+       0: aload_0\n+       1: invokespecial # // Method assumeJava8:()V\n+       4: ldc_w         # // String d14a028c2a3a2bc9476102bb288234c415a2b01f828ea62ac5b3e42f\n+       7: new           # // class org/apache/commons/codec/digest/DigestUtils\n+      10: dup\n+      11: ldc_w         # // String SHA-224\n+      14: invokespecial # // Method org/apache/commons/codec/digest/DigestUtils.\"<init>\":(Ljava/lang/String;)V\n+      17: ldc           # // String src/test/resources/empty.bin\n+      19: iconst_0\n+      20: anewarray     # // class java/lang/String\n+      23: invokestatic  # // Method java/nio/file/Paths.get:(Ljava/lang/String;[Ljava/lang/String;)Ljava/nio/file/Path;\n+      26: iconst_0\n+      27: anewarray     # // class java/nio/file/OpenOption\n+      30: invokevirtual # // Method org/apache/commons/codec/digest/DigestUtils.digestAsHex:(Ljava/nio/file/Path;[Ljava/nio/file/OpenOption;)Ljava/lang/String;\n+      33: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+      36: return\n+\n+  public void testSha224_StringAsHex();\n     Code:\n        0: aload_0\n        1: invokespecial # // Method assumeJava8:()V\n@@ -478,20 +774,138 @@\n       19: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha256Hex:([B)Ljava/lang/String;\n       22: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n       25: ldc_w         # // String 248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1\n-      28: ldc           # // String abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq\n-      30: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha256Hex:(Ljava/lang/String;)Ljava/lang/String;\n-      33: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n-      36: aload_0\n-      37: getfield      # // Field testData:[B\n-      40: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha256Hex:([B)Ljava/lang/String;\n-      43: new           # // class java/io/ByteArrayInputStream\n-      46: dup\n-      47: aload_0\n-      48: getfield      # // Field testData:[B\n-      51: invokespecial # // Method java/io/ByteArrayInputStream.\"<init>\":([B)V\n-      54: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha256Hex:(Ljava/io/InputStream;)Ljava/lang/String;\n-      57: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n-      60: return\n+      28: ldc_w         # // String abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq\n+      31: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha256Hex:(Ljava/lang/String;)Ljava/lang/String;\n+      34: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+      37: aload_0\n+      38: getfield      # // Field testData:[B\n+      41: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha256Hex:([B)Ljava/lang/String;\n+      44: new           # // class java/io/ByteArrayInputStream\n+      47: dup\n+      48: aload_0\n+      49: getfield      # // Field testData:[B\n+      52: invokespecial # // Method java/io/ByteArrayInputStream.\"<init>\":([B)V\n+      55: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha256Hex:(Ljava/io/InputStream;)Ljava/lang/String;\n+      58: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+      61: return\n+\n+  public void testSha256HexInputStream() throws java.io.IOException;\n+    Code:\n+       0: aload_0\n+       1: getfield      # // Field testData:[B\n+       4: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha256Hex:([B)Ljava/lang/String;\n+       7: new           # // class java/io/ByteArrayInputStream\n+      10: dup\n+      11: aload_0\n+      12: getfield      # // Field testData:[B\n+      15: invokespecial # // Method java/io/ByteArrayInputStream.\"<init>\":([B)V\n+      18: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha256Hex:(Ljava/io/InputStream;)Ljava/lang/String;\n+      21: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+      24: return\n+\n+  public void testSha3_224();\n+    Code:\n+       0: aload_0\n+       1: invokespecial # // Method assumeJava9:()V\n+       4: ldc_w         # // String 6b4e03423667dbb73b6e15454f0eb1abd4597f9a1b078e3f5b5a6bc7\n+       7: ldc           # // String\n+       9: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha3_224Hex:(Ljava/lang/String;)Ljava/lang/String;\n+      12: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+      15: return\n+\n+  public void testSha3_224HexInputStream() throws java.io.IOException;\n+    Code:\n+       0: aload_0\n+       1: invokespecial # // Method assumeJava9:()V\n+       4: aload_0\n+       5: getfield      # // Field testData:[B\n+       8: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha3_224Hex:([B)Ljava/lang/String;\n+      11: new           # // class java/io/ByteArrayInputStream\n+      14: dup\n+      15: aload_0\n+      16: getfield      # // Field testData:[B\n+      19: invokespecial # // Method java/io/ByteArrayInputStream.\"<init>\":([B)V\n+      22: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha3_224Hex:(Ljava/io/InputStream;)Ljava/lang/String;\n+      25: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+      28: return\n+\n+  public void testSha3_256();\n+    Code:\n+       0: aload_0\n+       1: invokespecial # // Method assumeJava9:()V\n+       4: ldc_w         # // String a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a\n+       7: ldc           # // String\n+       9: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha3_256Hex:(Ljava/lang/String;)Ljava/lang/String;\n+      12: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+      15: return\n+\n+  public void testSha3_256HexInputStream() throws java.io.IOException;\n+    Code:\n+       0: aload_0\n+       1: invokespecial # // Method assumeJava9:()V\n+       4: aload_0\n+       5: getfield      # // Field testData:[B\n+       8: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha3_256Hex:([B)Ljava/lang/String;\n+      11: new           # // class java/io/ByteArrayInputStream\n+      14: dup\n+      15: aload_0\n+      16: getfield      # // Field testData:[B\n+      19: invokespecial # // Method java/io/ByteArrayInputStream.\"<init>\":([B)V\n+      22: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha3_256Hex:(Ljava/io/InputStream;)Ljava/lang/String;\n+      25: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+      28: return\n+\n+  public void testSha3_384();\n+    Code:\n+       0: aload_0\n+       1: invokespecial # // Method assumeJava9:()V\n+       4: ldc_w         # // String 0c63a75b845e4f7d01107d852e4c2485c51a50aaaa94fc61995e71bbee983a2ac3713831264adb47fb6bd1e058d5f004\n+       7: ldc           # // String\n+       9: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha3_384Hex:(Ljava/lang/String;)Ljava/lang/String;\n+      12: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+      15: return\n+\n+  public void testSha3_384HexInputStream() throws java.io.IOException;\n+    Code:\n+       0: aload_0\n+       1: invokespecial # // Method assumeJava9:()V\n+       4: aload_0\n+       5: getfield      # // Field testData:[B\n+       8: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha3_384Hex:([B)Ljava/lang/String;\n+      11: new           # // class java/io/ByteArrayInputStream\n+      14: dup\n+      15: aload_0\n+      16: getfield      # // Field testData:[B\n+      19: invokespecial # // Method java/io/ByteArrayInputStream.\"<init>\":([B)V\n+      22: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha3_384Hex:(Ljava/io/InputStream;)Ljava/lang/String;\n+      25: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+      28: return\n+\n+  public void testSha3_512();\n+    Code:\n+       0: aload_0\n+       1: invokespecial # // Method assumeJava9:()V\n+       4: ldc_w         # // String a69f73cca23a9ac5c8b567dc185a756e97c982164fe25859e0d1dcc1475c80a615b2123af1f5f94c11e3e9402c3ac558f500199d95b6d3e301758586281dcd26\n+       7: ldc           # // String\n+       9: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha3_512Hex:(Ljava/lang/String;)Ljava/lang/String;\n+      12: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+      15: return\n+\n+  public void testSha3_512HexInputStream() throws java.io.IOException;\n+    Code:\n+       0: aload_0\n+       1: invokespecial # // Method assumeJava9:()V\n+       4: aload_0\n+       5: getfield      # // Field testData:[B\n+       8: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha3_512Hex:([B)Ljava/lang/String;\n+      11: new           # // class java/io/ByteArrayInputStream\n+      14: dup\n+      15: aload_0\n+      16: getfield      # // Field testData:[B\n+      19: invokespecial # // Method java/io/ByteArrayInputStream.\"<init>\":([B)V\n+      22: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha3_512Hex:(Ljava/io/InputStream;)Ljava/lang/String;\n+      25: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+      28: return\n \n   public void testSha384() throws java.io.IOException;\n     Code:\n@@ -520,6 +934,20 @@\n       58: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n       61: return\n \n+  public void testSha384HexInputStream() throws java.io.IOException;\n+    Code:\n+       0: aload_0\n+       1: getfield      # // Field testData:[B\n+       4: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha384Hex:([B)Ljava/lang/String;\n+       7: new           # // class java/io/ByteArrayInputStream\n+      10: dup\n+      11: aload_0\n+      12: getfield      # // Field testData:[B\n+      15: invokespecial # // Method java/io/ByteArrayInputStream.\"<init>\":([B)V\n+      18: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha384Hex:(Ljava/io/InputStream;)Ljava/lang/String;\n+      21: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+      24: return\n+\n   public void testSha512();\n     Code:\n        0: ldc_w         # // String ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f\n@@ -537,73 +965,109 @@\n       34: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n       37: return\n \n-  public void testSha3_224();\n+  public void testSha512_224() throws java.lang.Exception;\n     Code:\n        0: aload_0\n        1: invokespecial # // Method assumeJava9:()V\n-       4: ldc_w         # // String 6b4e03423667dbb73b6e15454f0eb1abd4597f9a1b078e3f5b5a6bc7\n-       7: ldc           # // String\n-       9: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha3_224Hex:(Ljava/lang/String;)Ljava/lang/String;\n-      12: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n-      15: return\n-\n-  public void testSha3_256();\n+       4: ldc           # // String abc\n+       6: invokestatic  # // Method org/apache/commons/codec/binary/StringUtils.getBytesUtf8:(Ljava/lang/String;)[B\n+       9: astore_1\n+      10: ldc_w         # // String 4634270F707B6A54DAAE7530460842E20E37ED265CEEE9A43E8924AA\n+      13: getstatic     # // Field java/util/Locale.ROOT:Ljava/util/Locale;\n+      16: invokevirtual # // Method java/lang/String.toLowerCase:(Ljava/util/Locale;)Ljava/lang/String;\n+      19: astore_2\n+      20: aload_2\n+      21: invokestatic  # // Method org/apache/commons/codec/binary/Hex.decodeHex:(Ljava/lang/String;)[B\n+      24: astore_3\n+      25: aload_3\n+      26: aload_1\n+      27: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha512_224:([B)[B\n+      30: invokestatic  # // Method org/junit/Assert.assertArrayEquals:([B[B)V\n+      33: aload_3\n+      34: new           # // class java/io/ByteArrayInputStream\n+      37: dup\n+      38: aload_1\n+      39: invokespecial # // Method java/io/ByteArrayInputStream.\"<init>\":([B)V\n+      42: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha512_224:(Ljava/io/InputStream;)[B\n+      45: invokestatic  # // Method org/junit/Assert.assertArrayEquals:([B[B)V\n+      48: aload_3\n+      49: ldc           # // String abc\n+      51: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha512_224:(Ljava/lang/String;)[B\n+      54: invokestatic  # // Method org/junit/Assert.assertArrayEquals:([B[B)V\n+      57: aload_2\n+      58: aload_1\n+      59: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha512_224Hex:([B)Ljava/lang/String;\n+      62: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+      65: aload_2\n+      66: new           # // class java/io/ByteArrayInputStream\n+      69: dup\n+      70: aload_1\n+      71: invokespecial # // Method java/io/ByteArrayInputStream.\"<init>\":([B)V\n+      74: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha512_224Hex:(Ljava/io/InputStream;)Ljava/lang/String;\n+      77: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+      80: aload_2\n+      81: ldc           # // String abc\n+      83: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha512_224Hex:(Ljava/lang/String;)Ljava/lang/String;\n+      86: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+      89: ldc_w         # // String 23FEC5BB94D60B23308192640B0C453335D664734FE40E7268674AF9\n+      92: getstatic     # // Field java/util/Locale.ROOT:Ljava/util/Locale;\n+      95: invokevirtual # // Method java/lang/String.toLowerCase:(Ljava/util/Locale;)Ljava/lang/String;\n+      98: ldc_w         # // String abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhijklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu\n+     101: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha512_224Hex:(Ljava/lang/String;)Ljava/lang/String;\n+     104: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+     107: return\n+\n+  public void testSha512_256() throws java.lang.Exception;\n     Code:\n        0: aload_0\n        1: invokespecial # // Method assumeJava9:()V\n-       4: ldc_w         # // String a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a\n-       7: ldc           # // String\n-       9: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha3_256Hex:(Ljava/lang/String;)Ljava/lang/String;\n-      12: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n-      15: return\n-\n-  public void testSha3_384();\n-    Code:\n-       0: aload_0\n-       1: invokespecial # // Method assumeJava9:()V\n-       4: ldc_w         # // String 0c63a75b845e4f7d01107d852e4c2485c51a50aaaa94fc61995e71bbee983a2ac3713831264adb47fb6bd1e058d5f004\n-       7: ldc           # // String\n-       9: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha3_384Hex:(Ljava/lang/String;)Ljava/lang/String;\n-      12: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n-      15: return\n-\n-  public void testSha3_512();\n-    Code:\n-       0: aload_0\n-       1: invokespecial # // Method assumeJava9:()V\n-       4: ldc_w         # // String a69f73cca23a9ac5c8b567dc185a756e97c982164fe25859e0d1dcc1475c80a615b2123af1f5f94c11e3e9402c3ac558f500199d95b6d3e301758586281dcd26\n-       7: ldc           # // String\n-       9: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha3_512Hex:(Ljava/lang/String;)Ljava/lang/String;\n-      12: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n-      15: return\n-\n-  public void testSha256HexInputStream() throws java.io.IOException;\n-    Code:\n-       0: aload_0\n-       1: getfield      # // Field testData:[B\n-       4: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha256Hex:([B)Ljava/lang/String;\n-       7: new           # // class java/io/ByteArrayInputStream\n-      10: dup\n-      11: aload_0\n-      12: getfield      # // Field testData:[B\n-      15: invokespecial # // Method java/io/ByteArrayInputStream.\"<init>\":([B)V\n-      18: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha256Hex:(Ljava/io/InputStream;)Ljava/lang/String;\n-      21: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n-      24: return\n-\n-  public void testSha384HexInputStream() throws java.io.IOException;\n-    Code:\n-       0: aload_0\n-       1: getfield      # // Field testData:[B\n-       4: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha384Hex:([B)Ljava/lang/String;\n-       7: new           # // class java/io/ByteArrayInputStream\n-      10: dup\n-      11: aload_0\n-      12: getfield      # // Field testData:[B\n-      15: invokespecial # // Method java/io/ByteArrayInputStream.\"<init>\":([B)V\n-      18: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha384Hex:(Ljava/io/InputStream;)Ljava/lang/String;\n-      21: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n-      24: return\n+       4: ldc           # // String abc\n+       6: invokestatic  # // Method org/apache/commons/codec/binary/StringUtils.getBytesUtf8:(Ljava/lang/String;)[B\n+       9: astore_1\n+      10: ldc_w         # // String 53048E2681941EF99B2E29B76B4C7DABE4C2D0C634FC6D46E0E2F13107E7AF23\n+      13: getstatic     # // Field java/util/Locale.ROOT:Ljava/util/Locale;\n+      16: invokevirtual # // Method java/lang/String.toLowerCase:(Ljava/util/Locale;)Ljava/lang/String;\n+      19: astore_2\n+      20: aload_2\n+      21: invokestatic  # // Method org/apache/commons/codec/binary/Hex.decodeHex:(Ljava/lang/String;)[B\n+      24: astore_3\n+      25: aload_3\n+      26: aload_1\n+      27: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha512_256:([B)[B\n+      30: invokestatic  # // Method org/junit/Assert.assertArrayEquals:([B[B)V\n+      33: aload_3\n+      34: new           # // class java/io/ByteArrayInputStream\n+      37: dup\n+      38: aload_1\n+      39: invokespecial # // Method java/io/ByteArrayInputStream.\"<init>\":([B)V\n+      42: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha512_256:(Ljava/io/InputStream;)[B\n+      45: invokestatic  # // Method org/junit/Assert.assertArrayEquals:([B[B)V\n+      48: aload_3\n+      49: ldc           # // String abc\n+      51: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha512_256:(Ljava/lang/String;)[B\n+      54: invokestatic  # // Method org/junit/Assert.assertArrayEquals:([B[B)V\n+      57: aload_2\n+      58: aload_1\n+      59: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha512_256Hex:([B)Ljava/lang/String;\n+      62: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+      65: aload_2\n+      66: new           # // class java/io/ByteArrayInputStream\n+      69: dup\n+      70: aload_1\n+      71: invokespecial # // Method java/io/ByteArrayInputStream.\"<init>\":([B)V\n+      74: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha512_256Hex:(Ljava/io/InputStream;)Ljava/lang/String;\n+      77: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+      80: aload_2\n+      81: ldc           # // String abc\n+      83: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha512_256Hex:(Ljava/lang/String;)Ljava/lang/String;\n+      86: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+      89: ldc_w         # // String 3928E184FB8690F840DA3988121D31BE65CB9D3EF83EE6146FEAC861E19B563A\n+      92: getstatic     # // Field java/util/Locale.ROOT:Ljava/util/Locale;\n+      95: invokevirtual # // Method java/lang/String.toLowerCase:(Ljava/util/Locale;)Ljava/lang/String;\n+      98: ldc_w         # // String abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhijklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu\n+     101: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha512_256Hex:(Ljava/lang/String;)Ljava/lang/String;\n+     104: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+     107: return\n \n   public void testSha512HexInputStream() throws java.io.IOException;\n     Code:\n@@ -619,166 +1083,102 @@\n       21: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n       24: return\n \n-  public void testSha3_224HexInputStream() throws java.io.IOException;\n-    Code:\n-       0: aload_0\n-       1: invokespecial # // Method assumeJava9:()V\n-       4: aload_0\n-       5: getfield      # // Field testData:[B\n-       8: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha3_224Hex:([B)Ljava/lang/String;\n-      11: new           # // class java/io/ByteArrayInputStream\n-      14: dup\n-      15: aload_0\n-      16: getfield      # // Field testData:[B\n-      19: invokespecial # // Method java/io/ByteArrayInputStream.\"<init>\":([B)V\n-      22: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha3_224Hex:(Ljava/io/InputStream;)Ljava/lang/String;\n-      25: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n-      28: return\n-\n-  public void testSha3_256HexInputStream() throws java.io.IOException;\n-    Code:\n-       0: aload_0\n-       1: invokespecial # // Method assumeJava9:()V\n-       4: aload_0\n-       5: getfield      # // Field testData:[B\n-       8: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha3_256Hex:([B)Ljava/lang/String;\n-      11: new           # // class java/io/ByteArrayInputStream\n-      14: dup\n-      15: aload_0\n-      16: getfield      # // Field testData:[B\n-      19: invokespecial # // Method java/io/ByteArrayInputStream.\"<init>\":([B)V\n-      22: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha3_256Hex:(Ljava/io/InputStream;)Ljava/lang/String;\n-      25: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n-      28: return\n-\n-  public void testSha3_384HexInputStream() throws java.io.IOException;\n-    Code:\n-       0: aload_0\n-       1: invokespecial # // Method assumeJava9:()V\n-       4: aload_0\n-       5: getfield      # // Field testData:[B\n-       8: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha3_384Hex:([B)Ljava/lang/String;\n-      11: new           # // class java/io/ByteArrayInputStream\n-      14: dup\n-      15: aload_0\n-      16: getfield      # // Field testData:[B\n-      19: invokespecial # // Method java/io/ByteArrayInputStream.\"<init>\":([B)V\n-      22: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha3_384Hex:(Ljava/io/InputStream;)Ljava/lang/String;\n-      25: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n-      28: return\n-\n-  public void testSha3_512HexInputStream() throws java.io.IOException;\n-    Code:\n-       0: aload_0\n-       1: invokespecial # // Method assumeJava9:()V\n-       4: aload_0\n-       5: getfield      # // Field testData:[B\n-       8: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha3_512Hex:([B)Ljava/lang/String;\n-      11: new           # // class java/io/ByteArrayInputStream\n-      14: dup\n-      15: aload_0\n-      16: getfield      # // Field testData:[B\n-      19: invokespecial # // Method java/io/ByteArrayInputStream.\"<init>\":([B)V\n-      22: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.sha3_512Hex:(Ljava/io/InputStream;)Ljava/lang/String;\n-      25: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n-      28: return\n-\n   public void testShaHex() throws java.io.IOException;\n     Code:\n-       0: ldc           # // String a9993e364706816aba3e25717850c26c9cd0d89d\n-       2: ldc           # // String abc\n-       4: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.shaHex:(Ljava/lang/String;)Ljava/lang/String;\n-       7: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n-      10: ldc           # // String a9993e364706816aba3e25717850c26c9cd0d89d\n-      12: ldc           # // String abc\n-      14: invokestatic  # // Method org/apache/commons/codec/binary/StringUtils.getBytesUtf8:(Ljava/lang/String;)[B\n-      17: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.shaHex:([B)Ljava/lang/String;\n-      20: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n-      23: ldc           # // String 84983e441c3bd26ebaae4aa1f95129e5e54670f1\n-      25: ldc           # // String abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq\n-      27: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.shaHex:(Ljava/lang/String;)Ljava/lang/String;\n-      30: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n-      33: aload_0\n-      34: getfield      # // Field testData:[B\n-      37: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.shaHex:([B)Ljava/lang/String;\n-      40: new           # // class java/io/ByteArrayInputStream\n-      43: dup\n-      44: aload_0\n-      45: getfield      # // Field testData:[B\n-      48: invokespecial # // Method java/io/ByteArrayInputStream.\"<init>\":([B)V\n-      51: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.shaHex:(Ljava/io/InputStream;)Ljava/lang/String;\n-      54: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n-      57: return\n+       0: ldc_w         # // String a9993e364706816aba3e25717850c26c9cd0d89d\n+       3: ldc           # // String abc\n+       5: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.shaHex:(Ljava/lang/String;)Ljava/lang/String;\n+       8: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+      11: ldc_w         # // String a9993e364706816aba3e25717850c26c9cd0d89d\n+      14: ldc           # // String abc\n+      16: invokestatic  # // Method org/apache/commons/codec/binary/StringUtils.getBytesUtf8:(Ljava/lang/String;)[B\n+      19: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.shaHex:([B)Ljava/lang/String;\n+      22: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+      25: ldc_w         # // String 84983e441c3bd26ebaae4aa1f95129e5e54670f1\n+      28: ldc_w         # // String abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq\n+      31: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.shaHex:(Ljava/lang/String;)Ljava/lang/String;\n+      34: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+      37: aload_0\n+      38: getfield      # // Field testData:[B\n+      41: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.shaHex:([B)Ljava/lang/String;\n+      44: new           # // class java/io/ByteArrayInputStream\n+      47: dup\n+      48: aload_0\n+      49: getfield      # // Field testData:[B\n+      52: invokespecial # // Method java/io/ByteArrayInputStream.\"<init>\":([B)V\n+      55: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.shaHex:(Ljava/io/InputStream;)Ljava/lang/String;\n+      58: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+      61: return\n \n   public void testShaUpdateWithByteArray();\n     Code:\n        0: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.getShaDigest:()Ljava/security/MessageDigest;\n        3: astore_1\n        4: aload_1\n-       5: ldc           # // String C\\'est un homme qui rentre dans un caf\u00e9, et plouf\n-       7: invokevirtual # // Method java/lang/String.getBytes:()[B\n-      10: invokevirtual # // Method java/security/MessageDigest.update:([B)V\n-      13: aload_1\n-      14: ldc_w         # // String C\\'est un homme, c\\'est qu\\'une t\u00eate, on lui offre un cadeau: \\'oh... encore un chapeau!\\'\n-      17: invokevirtual # // Method java/lang/String.getBytes:()[B\n-      20: invokevirtual # // Method java/security/MessageDigest.update:([B)V\n-      23: aload_1\n-      24: invokevirtual # // Method java/security/MessageDigest.digest:()[B\n-      27: invokestatic  # // Method org/apache/commons/codec/binary/Hex.encodeHexString:([B)Ljava/lang/String;\n-      30: astore_2\n-      31: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.getShaDigest:()Ljava/security/MessageDigest;\n-      34: astore_1\n-      35: aload_1\n-      36: ldc           # // String C\\'est un homme qui rentre dans un caf\u00e9, et plouf\n-      38: invokevirtual # // Method java/lang/String.getBytes:()[B\n-      41: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.updateDigest:(Ljava/security/MessageDigest;[B)Ljava/security/MessageDigest;\n-      44: pop\n-      45: aload_1\n-      46: ldc_w         # // String C\\'est un homme, c\\'est qu\\'une t\u00eate, on lui offre un cadeau: \\'oh... encore un chapeau!\\'\n-      49: invokevirtual # // Method java/lang/String.getBytes:()[B\n-      52: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.updateDigest:(Ljava/security/MessageDigest;[B)Ljava/security/MessageDigest;\n-      55: pop\n-      56: aload_1\n-      57: invokevirtual # // Method java/security/MessageDigest.digest:()[B\n-      60: invokestatic  # // Method org/apache/commons/codec/binary/Hex.encodeHexString:([B)Ljava/lang/String;\n-      63: astore_3\n-      64: aload_2\n-      65: aload_3\n-      66: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n-      69: return\n+       5: ldc_w         # // String C\\'est un homme qui rentre dans un caf\u00e9, et plouf\n+       8: invokevirtual # // Method java/lang/String.getBytes:()[B\n+      11: invokevirtual # // Method java/security/MessageDigest.update:([B)V\n+      14: aload_1\n+      15: ldc_w         # // String C\\'est un homme, c\\'est qu\\'une t\u00eate, on lui offre un cadeau: \\'oh... encore un chapeau!\\'\n+      18: invokevirtual # // Method java/lang/String.getBytes:()[B\n+      21: invokevirtual # // Method java/security/MessageDigest.update:([B)V\n+      24: aload_1\n+      25: invokevirtual # // Method java/security/MessageDigest.digest:()[B\n+      28: invokestatic  # // Method org/apache/commons/codec/binary/Hex.encodeHexString:([B)Ljava/lang/String;\n+      31: astore_2\n+      32: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.getShaDigest:()Ljava/security/MessageDigest;\n+      35: astore_1\n+      36: aload_1\n+      37: ldc_w         # // String C\\'est un homme qui rentre dans un caf\u00e9, et plouf\n+      40: invokevirtual # // Method java/lang/String.getBytes:()[B\n+      43: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.updateDigest:(Ljava/security/MessageDigest;[B)Ljava/security/MessageDigest;\n+      46: pop\n+      47: aload_1\n+      48: ldc_w         # // String C\\'est un homme, c\\'est qu\\'une t\u00eate, on lui offre un cadeau: \\'oh... encore un chapeau!\\'\n+      51: invokevirtual # // Method java/lang/String.getBytes:()[B\n+      54: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.updateDigest:(Ljava/security/MessageDigest;[B)Ljava/security/MessageDigest;\n+      57: pop\n+      58: aload_1\n+      59: invokevirtual # // Method java/security/MessageDigest.digest:()[B\n+      62: invokestatic  # // Method org/apache/commons/codec/binary/Hex.encodeHexString:([B)Ljava/lang/String;\n+      65: astore_3\n+      66: aload_2\n+      67: aload_3\n+      68: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+      71: return\n \n   public void testShaUpdateWithString();\n     Code:\n        0: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.getShaDigest:()Ljava/security/MessageDigest;\n        3: astore_1\n        4: aload_1\n-       5: ldc           # // String C\\'est un homme qui rentre dans un caf\u00e9, et plouf\n-       7: invokestatic  # // Method org/apache/commons/codec/binary/StringUtils.getBytesUtf8:(Ljava/lang/String;)[B\n-      10: invokevirtual # // Method java/security/MessageDigest.update:([B)V\n-      13: aload_1\n-      14: ldc_w         # // String C\\'est un homme, c\\'est qu\\'une t\u00eate, on lui offre un cadeau: \\'oh... encore un chapeau!\\'\n-      17: invokestatic  # // Method org/apache/commons/codec/binary/StringUtils.getBytesUtf8:(Ljava/lang/String;)[B\n-      20: invokevirtual # // Method java/security/MessageDigest.update:([B)V\n-      23: aload_1\n-      24: invokevirtual # // Method java/security/MessageDigest.digest:()[B\n-      27: invokestatic  # // Method org/apache/commons/codec/binary/Hex.encodeHexString:([B)Ljava/lang/String;\n-      30: astore_2\n-      31: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.getShaDigest:()Ljava/security/MessageDigest;\n-      34: astore_1\n-      35: aload_1\n-      36: ldc           # // String C\\'est un homme qui rentre dans un caf\u00e9, et plouf\n-      38: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.updateDigest:(Ljava/security/MessageDigest;Ljava/lang/String;)Ljava/security/MessageDigest;\n-      41: pop\n-      42: aload_1\n-      43: ldc_w         # // String C\\'est un homme, c\\'est qu\\'une t\u00eate, on lui offre un cadeau: \\'oh... encore un chapeau!\\'\n-      46: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.updateDigest:(Ljava/security/MessageDigest;Ljava/lang/String;)Ljava/security/MessageDigest;\n-      49: pop\n-      50: aload_1\n-      51: invokevirtual # // Method java/security/MessageDigest.digest:()[B\n-      54: invokestatic  # // Method org/apache/commons/codec/binary/Hex.encodeHexString:([B)Ljava/lang/String;\n-      57: astore_3\n-      58: aload_2\n-      59: aload_3\n-      60: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n-      63: return\n+       5: ldc_w         # // String C\\'est un homme qui rentre dans un caf\u00e9, et plouf\n+       8: invokestatic  # // Method org/apache/commons/codec/binary/StringUtils.getBytesUtf8:(Ljava/lang/String;)[B\n+      11: invokevirtual # // Method java/security/MessageDigest.update:([B)V\n+      14: aload_1\n+      15: ldc_w         # // String C\\'est un homme, c\\'est qu\\'une t\u00eate, on lui offre un cadeau: \\'oh... encore un chapeau!\\'\n+      18: invokestatic  # // Method org/apache/commons/codec/binary/StringUtils.getBytesUtf8:(Ljava/lang/String;)[B\n+      21: invokevirtual # // Method java/security/MessageDigest.update:([B)V\n+      24: aload_1\n+      25: invokevirtual # // Method java/security/MessageDigest.digest:()[B\n+      28: invokestatic  # // Method org/apache/commons/codec/binary/Hex.encodeHexString:([B)Ljava/lang/String;\n+      31: astore_2\n+      32: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.getShaDigest:()Ljava/security/MessageDigest;\n+      35: astore_1\n+      36: aload_1\n+      37: ldc_w         # // String C\\'est un homme qui rentre dans un caf\u00e9, et plouf\n+      40: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.updateDigest:(Ljava/security/MessageDigest;Ljava/lang/String;)Ljava/security/MessageDigest;\n+      43: pop\n+      44: aload_1\n+      45: ldc_w         # // String C\\'est un homme, c\\'est qu\\'une t\u00eate, on lui offre un cadeau: \\'oh... encore un chapeau!\\'\n+      48: invokestatic  # // Method org/apache/commons/codec/digest/DigestUtils.updateDigest:(Ljava/security/MessageDigest;Ljava/lang/String;)Ljava/security/MessageDigest;\n+      51: pop\n+      52: aload_1\n+      53: invokevirtual # // Method java/security/MessageDigest.digest:()[B\n+      56: invokestatic  # // Method org/apache/commons/codec/binary/Hex.encodeHexString:([B)Ljava/lang/String;\n+      59: astore_3\n+      60: aload_2\n+      61: aload_3\n+      62: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n+      65: return\n }",
+  "notice": "<b>Example page.</b> An illustrative classification from the BINEQ equivalence-review prototype, shown on sample data from a research dataset. This is a demonstration of the interface, not a live security assessment of any real system.",
+  "theme": "light"
+};
+</script>
+<script>
+/* =====================================================================
+   CASE DATA
+   ui/render_review.py injects `window.__CASE__` at the marker above to
+   populate this page for a specific binary pair.  The object below is the
+   fallback shown when the page is opened directly (a worked example).
+   Only pair + prediction are required; featureImportances and javapDiff are
+   optional and render an empty state when absent — that is where the planned
+   investigation tools plug in.
+   ===================================================================== */
+const CASE = window.__CASE__ || {
+  caseId: "pair-004821",
+  model: "Ensemble (one-vs-rest DT + RF meta)",
+  evaluatedAt: "2026-07-23 10:14 UTC",
+  // Class name only — container paths are deliberately not carried in the case
+  // (they can leak the answer and aren't shown).
+  pair: {
+    left:  { role: "Reference build", class: "/org/apache/bcel/classfile/AccessFlags.class" },
+    right: { role: "Build under review", class: "/org/apache/bcel/classfile/AccessFlags.class" }
+  },
+  prediction: {
+    sublabel: "NEQ2-conditionals",
+    confidence: 0.83,
+    // Other labels that also scored highly for this pair (runner-ups).
+    alternatives: [
+      { sublabel: "NEQ2-math", confidence: 0.07 },
+      { sublabel: "NEQ1", confidence: 0.05 },
+      { sublabel: "EQ-SameComp", confidence: 0.03 }
+    ]
+  },
+
+  // Local, signed attribution toward the predicted label for THIS pair
+  // (+ supports the label, − counts against it).
+  featureImportances: [
+    { feature: "d_ins_branch_conditional", value: 0.29 },
+    { feature: "s_insn_records", value: -0.18 },
+    { feature: "s_methodOpcodes", value: 0.11 },
+    { feature: "d_ins_comparison", value: 0.08 },
+    { feature: "s_methodCfgEdges", value: -0.04 }
+  ],
+  javapDiff:
+    "@@ boolean isPublic() @@\n" +
+    "   11: iload_0\n" +
+    "-  12: ifeq          25\n" +
+    "+  12: ifne          25\n" +
+    "   15: iconst_1\n" +
+    "   16: ireturn\n"
+};
+
+/* ---- sub-label interpretation ------------------------------------- */
+function describe(sublabel) {
+  const s = String(sublabel || "");
+  if (s.startsWith("EQ")) {
+    const map = {
+      "EQ-SameMjCompVer": "Equivalent — same compiler and major version. Differences are benign build noise.",
+      "EQ-SameComp": "Equivalent — same compiler, differing version. Differences attributed to the toolchain.",
+      "EQ-DiffComp": "Equivalent — compiled by different compilers. Behaviour matches despite toolchain differences."
+    };
+    return { binary: "EQ", group: "EQ", sev: "ok",
+      desc: map[s] || "Equivalent — the two binaries are judged to behave identically." };
+  }
+  if (s.startsWith("NEQ1")) {
+    return { binary: "NEQ", group: "NEQ1", sev: "warn",
+      desc: "Non-equivalent — a bytecode / API-level change between the two builds." };
+  }
+  if (s.startsWith("NEQ2")) {
+    const fam = s.slice(5) || "unknown";
+    return { binary: "NEQ", group: "NEQ2", sev: "warn",
+      desc: "Non-equivalent — a source-level mutation (" + fam + "-style change) alters behaviour." };
+  }
+  if (s.startsWith("NEQM")) {
+    const tech = s.slice(5).replace(/\./g, "/") || "unknown";
+    return { binary: "NEQ", group: "NEQM", sev: "crit",
+      desc: "Non-equivalent — resembles a MALICIOUS injection (" + tech + "). Warrants close review." };
+  }
+  // Unknown / out-of-distribution label.
+  const binary = s.startsWith("EQ") ? "EQ" : "NEQ";
+  return { binary, group: s || "?", sev: binary === "EQ" ? "ok" : "warn",
+    desc: "Unrecognised label — the model produced a class outside its known set." };
+}
+
+/* ---- glossary: decode project-specific names to plain terms -------- */
+/* Uses window.__GLOSSARY__ (injected by render_review.py) when present, and
+   falls back to raw names / describe() text otherwise. */
+const GLOSSARY = (typeof window !== "undefined" && window.__GLOSSARY__) || null;
+
+function esc(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+function humanize(t) { return t ? t.replace(/_/g, " ") : t; }
+function prettyClass(p) {
+  // "/org/apache/bcel/classfile/AccessFlags.class" -> "org.apache.bcel.classfile.AccessFlags"
+  return String(p).replace(/^\//, "").replace(/\.class$/i, "").replace(/\//g, ".");
+}
+
+function decodeSublabel(sublabel) {
+  const s = String(sublabel || "");
+  const g = GLOSSARY;
+  if (!g) return { title: s, detail: describe(s).desc };
+  const groups = g.groups || {};
+  if (s.startsWith("EQ")) {
+    const eq = (g.eq_sublabels || {})[s];
+    if (eq) return { title: eq.term, detail: eq.detail };
+    const grp = groups.EQ || {};
+    return { title: grp.term || "Equivalent", detail: grp.detail || "" };
+  }
+  if (s === "NEQ1") { const grp = groups.NEQ1 || {}; return { title: grp.term || s, detail: grp.detail || "" }; }
+  if (s.startsWith("NEQ2")) {
+    const grp = groups.NEQ2 || {}, fam = s.length > 5 ? s.slice(5) : "";
+    const f = (g.neq2_families || {})[fam];
+    if (f) return { title: (grp.term || "") + " — " + f.term, detail: f.detail };
+    return { title: grp.term || s, detail: grp.detail || "" };
+  }
+  if (s.startsWith("NEQM")) {
+    const grp = groups.NEQM || {}, parts = (s.length > 5 ? s.slice(5) : "").split(".");
+    const f = (g.neqm_families || {})[parts[0] || ""];
+    if (!f) return { title: grp.term || s, detail: grp.detail || "" };
+    const subs = g.neqm_subcategories || {};
+    let spec = parts[1] ? (subs[parts[1]] || humanize(parts[1])) : "";
+    const techh = parts[2] ? humanize(parts[2]) : null;
+    if (techh) spec = spec ? spec + " (" + techh + ")" : techh;
+    let title = (grp.term || "") + " — " + f.term;
+    if (spec) title += ": " + spec;
+    return { title, detail: f.detail };
+  }
+  if (s === "NEQ3") { const grp = groups.NEQ3 || {}; return { title: grp.term || s, detail: grp.detail || "" }; }
+  return { title: s, detail: "" };
+}
+
+function decodeFeature(name) {
+  const f = GLOSSARY && GLOSSARY.features && GLOSSARY.features[name];
+  return f ? { term: f.term, detail: f.detail } : { term: name, detail: "" };
+}
+
+/* ---- render ------------------------------------------------------- */
+function text(id, v) { document.getElementById(id).textContent = v; }
+
+function render(c) {
+  const info = describe(c.prediction.sublabel);
+
+  // Fixed theme (e.g. "light" for a uniform survey stimulus); otherwise the
+  // page follows the viewer's OS/browser setting.
+  if (c.theme === "light" || c.theme === "dark") {
+    document.documentElement.setAttribute("data-theme", c.theme);
+  }
+
+  const noticeEl = document.getElementById("notice");
+  if (c.notice) { noticeEl.innerHTML = c.notice; noticeEl.hidden = false; }
+  else { noticeEl.hidden = true; }
+
+  // Optional sections (hidden for a survey stimulus).
+  const decisionEl = document.querySelector(".decision");
+  if (decisionEl) decisionEl.hidden = !!c.hideDecision;      // responses go to the survey
+  document.getElementById("fiPanel").hidden = !!c.hideAttribution;
+
+  // Class under review (class name only — container paths are never shown, and
+  // are not present in the case data, so nothing can leak the answer).
+  const cls = (c.pair && c.pair.left && c.pair.left.class) || "";
+  const subjectEl = document.getElementById("subject");
+  if (cls) { subjectEl.innerHTML = "Class &middot; <b>" + esc(prettyClass(cls)) + "</b>"; subjectEl.hidden = false; }
+  else { subjectEl.hidden = true; }
+
+  text("caseId", c.caseId || "—");
+
+  const badge = document.getElementById("badge");
+  badge.textContent = info.binary;
+  badge.dataset.sev = info.sev;
+  document.getElementById("verdict").dataset.sev = info.sev;
+
+  text("sublabel", c.prediction.sublabel);
+  const dec = decodeSublabel(c.prediction.sublabel);
+  document.getElementById("description").innerHTML =
+    (dec.title ? "<strong>" + esc(dec.title) + "</strong>" : "")
+    + (dec.detail ? (dec.title ? " — " : "") + esc(dec.detail) : "");
+
+  const pct = Math.round((c.prediction.confidence ?? 0) * 100);
+  text("confPct", pct + "%");
+  const bar = document.getElementById("confBar");
+  bar.style.width = pct + "%";
+  bar.style.background = "var(--" + info.sev + "-line)";
+  document.getElementById("caution").classList.toggle("show",
+    (c.prediction.confidence ?? 0) < 0.6);
+
+  renderAlternatives(c.prediction.alternatives);
+  renderFeatureImportances(c.featureImportances);
+  renderDiff(c.javapDiff);
+
+  text("modelName", c.model || "—");
+  text("evaluatedAt", c.evaluatedAt || "—");
+}
+
+function renderAlternatives(alts) {
+  const section = document.getElementById("altSection");
+  const box = document.getElementById("alts");
+  if (!alts || !alts.length) { section.hidden = true; return; }
+  section.hidden = false;
+  box.innerHTML = alts.map(a => {
+    const info = describe(a.sublabel);
+    const dec = decodeSublabel(a.sublabel);
+    const pct = Math.round(a.confidence * 100);
+    // Bar shows the absolute probability (0–100%), so the fill matches the % —
+    // a 2% alternative reads as a 2% bar, not "nearly full".
+    const w = Math.max(0, Math.min(100, a.confidence * 100));
+    return '<div class="alt" data-sev="' + info.sev + '">'
+      + '<div class="al-head"><span class="al-name">'
+      + '<span class="al-term">' + esc(dec.title) + '</span>'
+      + '<span class="al-raw">' + esc(a.sublabel) + '</span></span>'
+      + '<span class="al-pct">' + pct + '%</span></div>'
+      + '<span class="al-bar"><span style="width:' + w + '%"></span></span></div>';
+  }).join("");
+}
+
+function renderFeatureImportances(list) {
+  const body = document.getElementById("fiBody");
+  const note = document.getElementById("fiNote");
+  if (!list || !list.length) {
+    note.textContent = "not available";
+    body.innerHTML = '<div class="empty">Feature attribution is not available for '
+      + 'this prediction.<br>Not every model can explain which inputs drove its '
+      + 'decision.</div>';
+    return;
+  }
+  note.textContent = list.length + " features";
+  const max = Math.max(...list.map(f => Math.abs(f.value)), 0.0001);
+  const rows = list.map(f => {
+    const w = Math.round((Math.abs(f.value) / max) * 50); // half-track (%)
+    const pos = f.value >= 0;
+    const bar = '<span class="' + (pos ? "pos" : "neg") + '" style="width:' + w + '%"></span>';
+    const sign = pos ? "+" : "−";
+    const d = decodeFeature(f.feature);
+    const name = '<span class="name"><span class="fname" title="' + esc(d.detail || d.term)
+      + '">' + esc(d.term) + '</span><span class="fraw">' + esc(f.feature) + '</span></span>';
+    return '<div class="fi-row">' + name
+      + '<span class="fi-track"><span class="axis"></span>' + bar + '</span>'
+      + '<span class="val ' + (pos ? "pos" : "neg") + '">' + sign
+      + Math.abs(f.value).toFixed(2) + '</span></div>';
+  }).join("");
+  body.innerHTML =
+    '<p class="fi-caption">Contribution of each input toward the predicted label for '
+    + '<em>this pair</em> — <b>right = supports</b>, <i>left = counts against</i>.</p>'
+    + '<div class="fi">' + rows + '</div>';
+}
+
+function renderDiff(diff) {
+  const body = document.getElementById("diffBody");
+  const note = document.getElementById("diffNote");
+  if (diff === undefined || diff === null) {
+    note.textContent = "not available";
+    body.innerHTML = '<div class="empty">A bytecode diff is not available for this case.</div>';
+    return;
+  }
+  if (diff === "") {
+    note.textContent = "identical";
+    body.innerHTML = '<div class="empty">No differences &mdash; the two builds '
+      + 'disassemble to identical bytecode.</div>';
+    return;
+  }
+  note.textContent = "";
+  const lines = diff.split("\n").map(line => {
+    let cls = "ln";
+    if (line.startsWith("@@")) cls += " hunk";
+    else if (line.startsWith("+")) cls += " add";
+    else if (line.startsWith("-")) cls += " del";
+    const safe = line.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    return '<span class="' + cls + '">' + (safe || " ") + '</span>';
+  }).join("");
+  body.innerHTML = '<div class="diff"><pre>' + lines + '</pre></div>';
+}
+
+/* ---- reviewer decision (local; persistence added when wired up) ---- */
+document.querySelectorAll('.actions .btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const pressed = btn.getAttribute('aria-pressed') === 'true';
+    document.querySelectorAll('.actions .btn').forEach(b =>
+      b.setAttribute('aria-pressed', 'false'));
+    const status = document.getElementById('decStatus');
+    if (pressed) { status.textContent = 'No decision recorded.'; return; }
+    btn.setAttribute('aria-pressed', 'true');
+    const labels = { agree: 'Agreed with the recommendation',
+      override: 'Overrode the recommendation', defer: 'Flagged for more investigation' };
+    status.innerHTML = 'Recorded: <b>' + labels[btn.dataset.kind] + '</b>.';
+  });
+});
+
+render(CASE);
+
+/* ---- iframe auto-resize (for embedding, e.g. in a Qualtrics survey) ----
+   Reports this page's height to the parent frame so the embedding page can size
+   the iframe with no inner scrollbar.  Harmless when not embedded. */
+function reportHeight() {
+  if (!document.body) return;
+  var h = Math.max(document.body.scrollHeight,
+                   document.documentElement.scrollHeight);
+  try { parent.postMessage({ type: "bineq-review-height", height: h }, "*"); }
+  catch (e) { /* ignore */ }
+}
+window.addEventListener("load", reportHeight);
+window.addEventListener("resize", reportHeight);
+document.querySelectorAll("details").forEach(function (d) {
+  d.addEventListener("toggle", reportHeight);
+});
+if (window.ResizeObserver) new ResizeObserver(reportHeight).observe(document.body);
+reportHeight();
+</script>
+</body>
+</html>

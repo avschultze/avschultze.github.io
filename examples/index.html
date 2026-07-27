@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BINEQ reviewer UI — examples</title>
+<style>
+  body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    max-width: 640px; margin: 48px auto; padding: 0 20px; line-height: 1.6;
+    color: #1a1f2b; background: #f6f7f9; }
+  @media (prefers-color-scheme: dark) { body { color:#e7eaf0; background:#10131a; }
+    a { color:#9aa2f5; } }
+  h1 { font-size: 22px; }
+  p.lead { color: #5b6472; }
+  ul { list-style: none; padding: 0; }
+  li { padding: 14px 16px; margin: 8px 0; background: #fff; border: 1px solid #e2e6ee;
+    border-radius: 10px; font-size: 16px; }
+  @media (prefers-color-scheme: dark) { li { background:#191d27; border-color:#29303d; } }
+  a { font-weight: 600; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .p { color: #8b93a1; font-size: 14px; font-weight: 400; }
+</style>
+</head>
+<body>
+  <h1>Binary equivalence review &mdash; example pages</h1>
+  <p class="lead">Each link opens a populated reviewer page for a different kind
+  of change. Illustrative sample data from a research dataset.</p>
+  <ul>
+    <li><a href="eq.html">Equivalent (different compilers)</a> &mdash; <span class="p">model said: EQ-SameMjCompVer</span></li>
+    <li><a href="neq1.html">Real code change (NEQ1)</a> &mdash; <span class="p">model said: NEQ1</span></li>
+    <li><a href="neq2.html">Test mutation (NEQ2)</a> &mdash; <span class="p">model said: NEQ2-increments</span></li>
+    <li><a href="neqm.html">Malicious injection (NEQM)</a> &mdash; <span class="p">model said: NEQM-reflect.load.defineclass</span></li>
+  </ul>
+</body>
+</html>
