@@ -228,23 +228,6 @@
   .diff .del { background: var(--crit-bg); color: var(--crit); }
   .diff .hunk { color: var(--accent); }
 
-  /* experimental diff toggles + side-by-side view */
-  .diff-controls { display: flex; gap: 14px; flex-wrap: wrap; padding: 12px 0 14px; }
-  .dc-group { display: inline-flex; border: 1px solid var(--border-strong);
-    border-radius: 8px; overflow: hidden; }
-  .dc-group button { font: inherit; font-size: 13px; padding: 6px 13px; border: 0;
-    background: var(--surface); color: var(--muted); cursor: pointer; }
-  .dc-group button + button { border-left: 1px solid var(--border-strong); }
-  .dc-group button.on { background: var(--accent); color: #fff; }
-  .diff.sxs { overflow-x: auto; }
-  .diff.sxs table { border-collapse: collapse; width: 100%; table-layout: fixed;
-    font-family: var(--mono); font-size: 13px; line-height: 1.55; }
-  .diff.sxs td { padding: 0 10px; white-space: pre; vertical-align: top; width: 50%;
-    overflow-x: auto; }
-  .diff.sxs td.sxs-r { border-left: 1px solid var(--border); }
-  .sxs-del td.sxs-l, .sxs-chg td.sxs-l { background: var(--crit-bg); color: var(--crit); }
-  .sxs-ins td.sxs-r, .sxs-chg td.sxs-r { background: var(--ok-bg); color: var(--ok); }
-
   /* ---- reviewer decision -------------------------------------------- */
   .decision { margin-top: 28px; background: var(--surface); border: 1px solid var(--border);
     border-radius: 12px; padding: 16px 18px; }
@@ -262,11 +245,6 @@
   .decision-status { margin-top: 12px; font-size: 14px; color: var(--muted);
     min-height: 1.2em; }
   .decision-status b { color: var(--ink); }
-
-  /* ---- footer ------------------------------------------------------- */
-  .foot { margin-top: 26px; display: flex; justify-content: space-between; gap: 12px;
-    flex-wrap: wrap; font-size: 13px; color: var(--faint); }
-  .foot code { font-family: var(--mono); color: var(--muted); }
 
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
@@ -326,7 +304,7 @@
   </details>
 
   <details class="panel" id="diffPanel" open>
-    <summary><span class="chev" aria-hidden="true"></span> Bytecode diff (javap)
+    <summary><span class="chev" aria-hidden="true"></span> Bytecode diff (javap -c -p)
       <span class="summary-note" id="diffNote"></span></summary>
     <div class="panel-body" id="diffBody"></div>
   </details>
@@ -342,11 +320,6 @@
     </div>
     <div class="decision-status" id="decStatus" aria-live="polite">No decision recorded.</div>
   </section>
-
-  <div class="foot">
-    <span>Model: <code id="modelName">—</code></span>
-    <span>Evaluated <code id="evaluatedAt">—</code></span>
-  </div>
 </main>
 
 <script>
@@ -358,22 +331,22 @@ window.__CASE__ = {
   "pair": {
     "left": {
       "role": "left",
-      "class": "/org/apache/commons/configuration2/TestConfigurationConverter.class"
+      "class": "/org/apache/commons/configuration2/TestXMLPropertiesConfiguration.class"
     },
     "right": {
       "role": "right",
-      "class": "/org/apache/commons/configuration2/TestConfigurationConverter.class"
+      "class": "/org/apache/commons/configuration2/TestXMLPropertiesConfiguration.class"
     }
   },
   "prediction": {
     "sublabel": "EQ-DiffComp",
-    "confidence": 0.7518943977413828,
+    "confidence": 0.7819400844564438,
     "alternatives": []
   },
   "featureImportances": [],
-  "javapDiff": "@@ -121,20 +121,20 @@\n        9: invokestatic  # // Method createTestConfiguration:()Lorg/apache/commons/configuration2/BaseConfiguration;\n       12: astore_2\n       13: aload_1\n-      14: invokeinterface # ,  1           // InterfaceMethod org/apache/commons/configuration2/Configuration.getKeys:()Ljava/util/Iterator;\n+      14: invokeinterface # ,  1          // InterfaceMethod org/apache/commons/configuration2/Configuration.getKeys:()Ljava/util/Iterator;\n       19: invokestatic  # // Method org/mockito/Mockito.when:(Ljava/lang/Object;)Lorg/mockito/stubbing/OngoingStubbing;\n       22: aload_2\n       23: invokevirtual # // Method org/apache/commons/configuration2/BaseConfiguration.getKeys:()Ljava/util/Iterator;\n-      26: invokeinterface # ,  2           // InterfaceMethod org/mockito/stubbing/OngoingStubbing.thenReturn:(Ljava/lang/Object;)Lorg/mockito/stubbing/OngoingStubbing;\n+      26: invokeinterface # ,  2          // InterfaceMethod org/mockito/stubbing/OngoingStubbing.thenReturn:(Ljava/lang/Object;)Lorg/mockito/stubbing/OngoingStubbing;\n       31: pop\n       32: aload_1\n       33: invokestatic  # // Method org/mockito/ArgumentMatchers.any:()Ljava/lang/Object;\n       36: checkcast     # // class java/lang/String\n-      39: invokeinterface # ,  2           // InterfaceMethod org/apache/commons/configuration2/Configuration.getList:(Ljava/lang/String;)Ljava/util/List;\n+      39: invokeinterface # ,  2          // InterfaceMethod org/apache/commons/configuration2/Configuration.getList:(Ljava/lang/String;)Ljava/util/List;\n       44: invokestatic  # // Method org/mockito/Mockito.when:(Ljava/lang/Object;)Lorg/mockito/stubbing/OngoingStubbing;\n       47: aload_2\n-      48: invokedynamic # ,  0             // InvokeDynamic # :answer:(Lorg/apache/commons/configuration2/BaseConfiguration;)Lorg/mockito/stubbing/Answer;\n-      53: invokeinterface # ,  2           // InterfaceMethod org/mockito/stubbing/OngoingStubbing.thenAnswer:(Lorg/mockito/stubbing/Answer;)Lorg/mockito/stubbing/OngoingStubbing;\n+      48: invokedynamic # ,  0            // InvokeDynamic # :answer:(Lorg/apache/commons/configuration2/BaseConfiguration;)Lorg/mockito/stubbing/Answer;\n+      53: invokeinterface # ,  2          // InterfaceMethod org/mockito/stubbing/OngoingStubbing.thenAnswer:(Lorg/mockito/stubbing/Answer;)Lorg/mockito/stubbing/OngoingStubbing;\n       58: pop\n       59: aload_1\n       60: invokestatic  # // Method org/apache/commons/configuration2/ConfigurationConverter.getProperties:(Lorg/apache/commons/configuration2/Configuration;)Ljava/util/Properties;\n@@ -210,7 +210,7 @@\n       74: ldc           # // String item 1\n       76: aload_3\n       77: iconst_0\n-      78: invokeinterface # ,  2           // InterfaceMethod java/util/List.get:(I)Ljava/lang/Object;\n+      78: invokeinterface # ,  2          // InterfaceMethod java/util/List.get:(I)Ljava/lang/Object;\n       83: invokestatic  # // Method org/junit/jupiter/api/Assertions.assertEquals:(Ljava/lang/Object;Ljava/lang/Object;)V\n       86: bipush        123\n       88: aload_2\n@@ -219,12 +219,12 @@\n       94: invokestatic  # // Method org/junit/jupiter/api/Assertions.assertEquals:(II)V\n       97: return\n \n-  private static java.lang.Object lambda$testConfigurationToPropertiesNoAbstractConfiguration$0(org.apache.commons.configuration2.BaseConfiguration, org.mockito.invocation.InvocationOnMock) throws java.lang.Throwable;\n+  private static java.lang.Object lambda$0(org.apache.commons.configuration2.BaseConfiguration, org.mockito.invocation.InvocationOnMock) throws java.lang.Throwable;\n     Code:\n        0: aload_1\n        1: iconst_0\n        2: ldc           # // class java/lang/String\n-       4: invokeinterface # ,  3           // InterfaceMethod org/mockito/invocation/InvocationOnMock.getArgument:(ILjava/lang/Class;)Ljava/lang/Object;\n+       4: invokeinterface # ,  3          // InterfaceMethod org/mockito/invocation/InvocationOnMock.getArgument:(ILjava/lang/Class;)Ljava/lang/Object;\n        9: checkcast     # // class java/lang/String\n       12: astore_2\n       13: aload_0",
+  "javapDiff": "@@ -270,15 +270,15 @@\n      120: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/String;Ljava/lang/Object;Ljava/lang/Object;)V\n      123: return\n \n-  private org.xml.sax.InputSource lambda$testDOMLoad$0(java.lang.String, java.lang.String) throws org.xml.sax.SAXException, java.io.IOException;\n+  private org.xml.sax.InputSource lambda$0(java.lang.String, java.lang.String) throws org.xml.sax.SAXException, java.io.IOException;\n     Code:\n        0: new           # // class org/xml/sax/InputSource\n        3: dup\n        4: aload_0\n        5: invokevirtual # // Method java/lang/Object.getClass:()Ljava/lang/Class;\n        8: invokevirtual # // Method java/lang/Class.getClassLoader:()Ljava/lang/ClassLoader;\n-      11: ldc           # // String properties.dtd\n-      13: invokevirtual # // Method java/lang/ClassLoader.getResourceAsStream:(Ljava/lang/String;)Ljava/io/InputStream;\n-      16: invokespecial # // Method org/xml/sax/InputSource.\"<init>\":(Ljava/io/InputStream;)V\n-      19: areturn\n+      11: ldc_w         # // String properties.dtd\n+      14: invokevirtual # // Method java/lang/ClassLoader.getResourceAsStream:(Ljava/lang/String;)Ljava/io/InputStream;\n+      17: invokespecial # // Method org/xml/sax/InputSource.\"<init>\":(Ljava/io/InputStream;)V\n+      20: areturn\n }",
   "theme": "light",
-  "accuracy": 0.8579693034238489,
+  "accuracy": 0.8588186503939806,
   "accuracyLabel": "Overall model accuracy",
   "survey": true
 };
@@ -618,9 +591,6 @@ function render(c) {
   renderAlternatives(survey ? [] : c.prediction.alternatives, rawHidden);
   renderFeatureImportances(c.featureImportances);
   renderDiff(c);
-
-  text("modelName", c.model || "—");
-  text("evaluatedAt", c.evaluatedAt || "—");
 }
 
 function renderAlternatives(alts, hideRaw) {
@@ -675,7 +645,22 @@ function renderFeatureImportances(list) {
     + '<div class="fi">' + rows + '</div>';
 }
 
-function unifiedHtml(diff) {
+function renderDiff(c) {
+  const body = document.getElementById("diffBody");
+  const note = document.getElementById("diffNote");
+  const diff = c.javapDiff;
+  if (diff === undefined || diff === null) {
+    note.textContent = "not available";
+    body.innerHTML = '<div class="empty">A bytecode diff is not available for this case.</div>';
+    return;
+  }
+  if (diff === "") {
+    note.textContent = "identical";
+    body.innerHTML = '<div class="empty">No differences &mdash; the two builds '
+      + 'disassemble to identical bytecode.</div>';
+    return;
+  }
+  note.textContent = "";
   const lines = diff.split("\n").map(line => {
     let cls = "ln";
     if (line.startsWith("@@")) cls += " hunk";
@@ -683,74 +668,7 @@ function unifiedHtml(diff) {
     else if (line.startsWith("-")) cls += " del";
     return '<span class="' + cls + '">' + (esc(line) || " ") + '</span>';
   }).join("");
-  return '<div class="diff"><pre>' + lines + '</pre></div>';
-}
-
-function sideBySideHtml(pairs) {
-  const rows = pairs.map(p =>
-    '<tr class="sxs-' + p.t + '">'
-    + '<td class="sxs-l">' + (esc(p.l) || "&nbsp;") + '</td>'
-    + '<td class="sxs-r">' + (esc(p.r) || "&nbsp;") + '</td></tr>').join("");
-  return '<div class="diff sxs"><table><tbody>' + rows + '</tbody></table></div>';
-}
-
-function renderDiff(c) {
-  const body = document.getElementById("diffBody");
-  const note = document.getElementById("diffNote");
-  const unified = c.javapDiff, full = c.javapDiffFull;
-  const pairs = c.javapPairs && c.javapPairs.length ? c.javapPairs : null;
-
-  if ((unified === undefined || unified === null) && !pairs) {
-    note.textContent = "not available";
-    body.innerHTML = '<div class="empty">A bytecode diff is not available for this case.</div>';
-    return;
-  }
-  if (unified === "" && !pairs) {
-    note.textContent = "identical";
-    body.innerHTML = '<div class="empty">No differences &mdash; the two builds '
-      + 'disassemble to identical bytecode.</div>';
-    return;
-  }
-
-  // Simple case: just the compact unified diff (normal pages).
-  if (!full && !pairs) {
-    note.textContent = "";
-    body.innerHTML = unifiedHtml(unified);
-    return;
-  }
-
-  // Experimental: offer full-diff and/or side-by-side toggles.
-  note.textContent = "";
-  let style = "single", detail = "changes";
-  body.innerHTML = "";
-  const controls = document.createElement("div");
-  controls.className = "diff-controls";
-  controls.innerHTML =
-    (full ? '<span class="dc-group" data-group="detail">'
-      + '<button data-v="changes" class="on">Changes only</button>'
-      + '<button data-v="full">Full diff</button></span>' : '')
-    + (pairs ? '<span class="dc-group" data-group="style">'
-      + '<button data-v="single" class="on">Single column</button>'
-      + '<button data-v="side">Side by side</button></span>' : '');
-  const viewEl = document.createElement("div");
-
-  function draw() {
-    if (style === "side" && pairs) viewEl.innerHTML = sideBySideHtml(pairs);
-    else viewEl.innerHTML = unifiedHtml(detail === "full" && full ? full : (unified || ""));
-    if (typeof reportHeight === "function") reportHeight();
-  }
-  controls.addEventListener("click", e => {
-    const b = e.target.closest("button");
-    if (!b) return;
-    const grp = b.parentElement.getAttribute("data-group");
-    if (grp === "detail") detail = b.getAttribute("data-v");
-    else if (grp === "style") style = b.getAttribute("data-v");
-    b.parentElement.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
-    draw();
-  });
-  body.appendChild(controls);
-  body.appendChild(viewEl);
-  draw();
+  body.innerHTML = '<div class="diff"><pre>' + lines + '</pre></div>';
 }
 
 /* ---- reviewer decision (local; persistence added when wired up) ---- */

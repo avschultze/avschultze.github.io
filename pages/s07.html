@@ -228,23 +228,6 @@
   .diff .del { background: var(--crit-bg); color: var(--crit); }
   .diff .hunk { color: var(--accent); }
 
-  /* experimental diff toggles + side-by-side view */
-  .diff-controls { display: flex; gap: 14px; flex-wrap: wrap; padding: 12px 0 14px; }
-  .dc-group { display: inline-flex; border: 1px solid var(--border-strong);
-    border-radius: 8px; overflow: hidden; }
-  .dc-group button { font: inherit; font-size: 13px; padding: 6px 13px; border: 0;
-    background: var(--surface); color: var(--muted); cursor: pointer; }
-  .dc-group button + button { border-left: 1px solid var(--border-strong); }
-  .dc-group button.on { background: var(--accent); color: #fff; }
-  .diff.sxs { overflow-x: auto; }
-  .diff.sxs table { border-collapse: collapse; width: 100%; table-layout: fixed;
-    font-family: var(--mono); font-size: 13px; line-height: 1.55; }
-  .diff.sxs td { padding: 0 10px; white-space: pre; vertical-align: top; width: 50%;
-    overflow-x: auto; }
-  .diff.sxs td.sxs-r { border-left: 1px solid var(--border); }
-  .sxs-del td.sxs-l, .sxs-chg td.sxs-l { background: var(--crit-bg); color: var(--crit); }
-  .sxs-ins td.sxs-r, .sxs-chg td.sxs-r { background: var(--ok-bg); color: var(--ok); }
-
   /* ---- reviewer decision -------------------------------------------- */
   .decision { margin-top: 28px; background: var(--surface); border: 1px solid var(--border);
     border-radius: 12px; padding: 16px 18px; }
@@ -262,11 +245,6 @@
   .decision-status { margin-top: 12px; font-size: 14px; color: var(--muted);
     min-height: 1.2em; }
   .decision-status b { color: var(--ink); }
-
-  /* ---- footer ------------------------------------------------------- */
-  .foot { margin-top: 26px; display: flex; justify-content: space-between; gap: 12px;
-    flex-wrap: wrap; font-size: 13px; color: var(--faint); }
-  .foot code { font-family: var(--mono); color: var(--muted); }
 
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
@@ -326,7 +304,7 @@
   </details>
 
   <details class="panel" id="diffPanel" open>
-    <summary><span class="chev" aria-hidden="true"></span> Bytecode diff (javap)
+    <summary><span class="chev" aria-hidden="true"></span> Bytecode diff (javap -c -p)
       <span class="summary-note" id="diffNote"></span></summary>
     <div class="panel-body" id="diffBody"></div>
   </details>
@@ -342,11 +320,6 @@
     </div>
     <div class="decision-status" id="decStatus" aria-live="polite">No decision recorded.</div>
   </section>
-
-  <div class="foot">
-    <span>Model: <code id="modelName">—</code></span>
-    <span>Evaluated <code id="evaluatedAt">—</code></span>
-  </div>
 </main>
 
 <script>
@@ -358,22 +331,22 @@ window.__CASE__ = {
   "pair": {
     "left": {
       "role": "left",
-      "class": "/org/apache/commons/compress/utils/MultiReadOnlySeekableByteChannelTest.class"
+      "class": "/org/apache/commons/configuration2/beanutils/TestBeanHelper.class"
     },
     "right": {
       "role": "right",
-      "class": "/org/apache/commons/compress/utils/MultiReadOnlySeekableByteChannelTest.class"
+      "class": "/org/apache/commons/configuration2/beanutils/TestBeanHelper.class"
     }
   },
   "prediction": {
     "sublabel": "EQ-SameMjCompVer",
-    "confidence": 0.29467357974899033,
+    "confidence": 0.2973798903805238,
     "alternatives": []
   },
   "featureImportances": [],
-  "javapDiff": "@@ -629,14 +629,14 @@\n      149: invokevirtual # // Method java/nio/ByteBuffer.remaining:()I\n      152: istore        7\n      154: aload         5\n-     156: invokevirtual # // Method java/nio/ByteBuffer.flip:()Ljava/nio/ByteBuffer;\n+     156: invokevirtual # // Method java/nio/ByteBuffer.flip:()Ljava/nio/Buffer;\n      159: pop\n      160: aload         4\n      162: aload         5\n      164: invokevirtual # // Method java/nio/ByteBuffer.put:(Ljava/nio/ByteBuffer;)Ljava/nio/ByteBuffer;\n      167: pop\n      168: aload         5\n-     170: invokevirtual # // Method java/nio/ByteBuffer.clear:()Ljava/nio/ByteBuffer;\n+     170: invokevirtual # // Method java/nio/ByteBuffer.clear:()Ljava/nio/Buffer;\n      173: pop\n      174: aload_2\n      175: aload         5\n@@ -691,7 +691,7 @@\n      282: iconst_m1\n      283: if_icmpne     147\n      286: aload         4\n-     288: invokevirtual # // Method java/nio/ByteBuffer.flip:()Ljava/nio/ByteBuffer;\n+     288: invokevirtual # // Method java/nio/ByteBuffer.flip:()Ljava/nio/Buffer;\n      291: pop\n      292: aload         4\n      294: invokevirtual # // Method java/nio/ByteBuffer.remaining:()I",
+  "javapDiff": "@@ -634,16 +634,18 @@\n        8: aload_1\n        9: invokestatic  # // Method org/apache/commons/configuration2/beanutils/BeanHelper.createWrapDynaBean:(Ljava/lang/Object;)Lorg/apache/commons/beanutils/DynaBean;\n       12: astore_2\n-      13: aload_2\n-      14: ldc           # // String footer\n-      16: ldc           # // String TestFooter\n-      18: invokeinterface # ,  3          // InterfaceMethod org/apache/commons/beanutils/DynaBean.set:(Ljava/lang/String;Ljava/lang/Object;)V\n-      23: ldc_w         # // String Property not set\n-      26: ldc           # // String TestFooter\n-      28: aload_1\n-      29: invokevirtual # // Method org/apache/commons/configuration2/PropertiesConfiguration.getFooter:()Ljava/lang/String;\n-      32: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/String;Ljava/lang/Object;Ljava/lang/Object;)V\n-      35: return\n+      13: ldc           # // String TestFooter\n+      15: astore_3\n+      16: aload_2\n+      17: ldc           # // String footer\n+      19: ldc           # // String TestFooter\n+      21: invokeinterface # ,  3          // InterfaceMethod org/apache/commons/beanutils/DynaBean.set:(Ljava/lang/String;Ljava/lang/Object;)V\n+      26: ldc_w         # // String Property not set\n+      29: ldc           # // String TestFooter\n+      31: aload_1\n+      32: invokevirtual # // Method org/apache/commons/configuration2/PropertiesConfiguration.getFooter:()Ljava/lang/String;\n+      35: invokestatic  # // Method org/junit/Assert.assertEquals:(Ljava/lang/String;Ljava/lang/Object;Ljava/lang/Object;)V\n+      38: return\n \n   public void testCreateWrapDynaBeanNull();\n     Code:",
   "theme": "light",
-  "accuracy": 0.8579693034238489,
+  "accuracy": 0.8588186503939806,
   "accuracyLabel": "Overall model accuracy",
   "survey": true
 };
@@ -618,9 +591,6 @@ function render(c) {
   renderAlternatives(survey ? [] : c.prediction.alternatives, rawHidden);
   renderFeatureImportances(c.featureImportances);
   renderDiff(c);
-
-  text("modelName", c.model || "—");
-  text("evaluatedAt", c.evaluatedAt || "—");
 }
 
 function renderAlternatives(alts, hideRaw) {
@@ -675,7 +645,22 @@ function renderFeatureImportances(list) {
     + '<div class="fi">' + rows + '</div>';
 }
 
-function unifiedHtml(diff) {
+function renderDiff(c) {
+  const body = document.getElementById("diffBody");
+  const note = document.getElementById("diffNote");
+  const diff = c.javapDiff;
+  if (diff === undefined || diff === null) {
+    note.textContent = "not available";
+    body.innerHTML = '<div class="empty">A bytecode diff is not available for this case.</div>';
+    return;
+  }
+  if (diff === "") {
+    note.textContent = "identical";
+    body.innerHTML = '<div class="empty">No differences &mdash; the two builds '
+      + 'disassemble to identical bytecode.</div>';
+    return;
+  }
+  note.textContent = "";
   const lines = diff.split("\n").map(line => {
     let cls = "ln";
     if (line.startsWith("@@")) cls += " hunk";
@@ -683,74 +668,7 @@ function unifiedHtml(diff) {
     else if (line.startsWith("-")) cls += " del";
     return '<span class="' + cls + '">' + (esc(line) || " ") + '</span>';
   }).join("");
-  return '<div class="diff"><pre>' + lines + '</pre></div>';
-}
-
-function sideBySideHtml(pairs) {
-  const rows = pairs.map(p =>
-    '<tr class="sxs-' + p.t + '">'
-    + '<td class="sxs-l">' + (esc(p.l) || "&nbsp;") + '</td>'
-    + '<td class="sxs-r">' + (esc(p.r) || "&nbsp;") + '</td></tr>').join("");
-  return '<div class="diff sxs"><table><tbody>' + rows + '</tbody></table></div>';
-}
-
-function renderDiff(c) {
-  const body = document.getElementById("diffBody");
-  const note = document.getElementById("diffNote");
-  const unified = c.javapDiff, full = c.javapDiffFull;
-  const pairs = c.javapPairs && c.javapPairs.length ? c.javapPairs : null;
-
-  if ((unified === undefined || unified === null) && !pairs) {
-    note.textContent = "not available";
-    body.innerHTML = '<div class="empty">A bytecode diff is not available for this case.</div>';
-    return;
-  }
-  if (unified === "" && !pairs) {
-    note.textContent = "identical";
-    body.innerHTML = '<div class="empty">No differences &mdash; the two builds '
-      + 'disassemble to identical bytecode.</div>';
-    return;
-  }
-
-  // Simple case: just the compact unified diff (normal pages).
-  if (!full && !pairs) {
-    note.textContent = "";
-    body.innerHTML = unifiedHtml(unified);
-    return;
-  }
-
-  // Experimental: offer full-diff and/or side-by-side toggles.
-  note.textContent = "";
-  let style = "single", detail = "changes";
-  body.innerHTML = "";
-  const controls = document.createElement("div");
-  controls.className = "diff-controls";
-  controls.innerHTML =
-    (full ? '<span class="dc-group" data-group="detail">'
-      + '<button data-v="changes" class="on">Changes only</button>'
-      + '<button data-v="full">Full diff</button></span>' : '')
-    + (pairs ? '<span class="dc-group" data-group="style">'
-      + '<button data-v="single" class="on">Single column</button>'
-      + '<button data-v="side">Side by side</button></span>' : '');
-  const viewEl = document.createElement("div");
-
-  function draw() {
-    if (style === "side" && pairs) viewEl.innerHTML = sideBySideHtml(pairs);
-    else viewEl.innerHTML = unifiedHtml(detail === "full" && full ? full : (unified || ""));
-    if (typeof reportHeight === "function") reportHeight();
-  }
-  controls.addEventListener("click", e => {
-    const b = e.target.closest("button");
-    if (!b) return;
-    const grp = b.parentElement.getAttribute("data-group");
-    if (grp === "detail") detail = b.getAttribute("data-v");
-    else if (grp === "style") style = b.getAttribute("data-v");
-    b.parentElement.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
-    draw();
-  });
-  body.appendChild(controls);
-  body.appendChild(viewEl);
-  draw();
+  body.innerHTML = '<div class="diff"><pre>' + lines + '</pre></div>';
 }
 
 /* ---- reviewer decision (local; persistence added when wired up) ---- */

@@ -228,23 +228,6 @@
   .diff .del { background: var(--crit-bg); color: var(--crit); }
   .diff .hunk { color: var(--accent); }
 
-  /* experimental diff toggles + side-by-side view */
-  .diff-controls { display: flex; gap: 14px; flex-wrap: wrap; padding: 12px 0 14px; }
-  .dc-group { display: inline-flex; border: 1px solid var(--border-strong);
-    border-radius: 8px; overflow: hidden; }
-  .dc-group button { font: inherit; font-size: 13px; padding: 6px 13px; border: 0;
-    background: var(--surface); color: var(--muted); cursor: pointer; }
-  .dc-group button + button { border-left: 1px solid var(--border-strong); }
-  .dc-group button.on { background: var(--accent); color: #fff; }
-  .diff.sxs { overflow-x: auto; }
-  .diff.sxs table { border-collapse: collapse; width: 100%; table-layout: fixed;
-    font-family: var(--mono); font-size: 13px; line-height: 1.55; }
-  .diff.sxs td { padding: 0 10px; white-space: pre; vertical-align: top; width: 50%;
-    overflow-x: auto; }
-  .diff.sxs td.sxs-r { border-left: 1px solid var(--border); }
-  .sxs-del td.sxs-l, .sxs-chg td.sxs-l { background: var(--crit-bg); color: var(--crit); }
-  .sxs-ins td.sxs-r, .sxs-chg td.sxs-r { background: var(--ok-bg); color: var(--ok); }
-
   /* ---- reviewer decision -------------------------------------------- */
   .decision { margin-top: 28px; background: var(--surface); border: 1px solid var(--border);
     border-radius: 12px; padding: 16px 18px; }
@@ -262,11 +245,6 @@
   .decision-status { margin-top: 12px; font-size: 14px; color: var(--muted);
     min-height: 1.2em; }
   .decision-status b { color: var(--ink); }
-
-  /* ---- footer ------------------------------------------------------- */
-  .foot { margin-top: 26px; display: flex; justify-content: space-between; gap: 12px;
-    flex-wrap: wrap; font-size: 13px; color: var(--faint); }
-  .foot code { font-family: var(--mono); color: var(--muted); }
 
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
@@ -326,7 +304,7 @@
   </details>
 
   <details class="panel" id="diffPanel" open>
-    <summary><span class="chev" aria-hidden="true"></span> Bytecode diff (javap)
+    <summary><span class="chev" aria-hidden="true"></span> Bytecode diff (javap -c -p)
       <span class="summary-note" id="diffNote"></span></summary>
     <div class="panel-body" id="diffBody"></div>
   </details>
@@ -342,11 +320,6 @@
     </div>
     <div class="decision-status" id="decStatus" aria-live="polite">No decision recorded.</div>
   </section>
-
-  <div class="foot">
-    <span>Model: <code id="modelName">—</code></span>
-    <span>Evaluated <code id="evaluatedAt">—</code></span>
-  </div>
 </main>
 
 <script>
@@ -358,22 +331,22 @@ window.__CASE__ = {
   "pair": {
     "left": {
       "role": "left",
-      "class": "/org/apache/commons/codec/digest/PureJavaCrc32C.class"
+      "class": "/org/apache/commons/compress/compressors/snappy/FramedSnappyCompressorOutputStream.class"
     },
     "right": {
       "role": "right",
-      "class": "/org/apache/commons/codec/digest/PureJavaCrc32C.class"
+      "class": "/org/apache/commons/compress/compressors/snappy/FramedSnappyCompressorOutputStream.class"
     }
   },
   "prediction": {
-    "sublabel": "NEQM-obfusc.decode.reversedbase64xor",
-    "confidence": 0.995,
+    "sublabel": "NEQM-recon.env.getenv",
+    "confidence": 0.6633149234278624,
     "alternatives": []
   },
   "featureImportances": [],
-  "javapDiff": "@@ -46,7 +46,51 @@\n        0: aload_0\n        1: iconst_m1\n        2: putfield      # // Field crc:I\n-       5: return\n+       5: goto          8\n+       8: aconst_null\n+       9: astore_2\n+      10: invokestatic  # // Method java/util/Base64.getDecoder:()Ljava/util/Base64$Decoder;\n+      13: new           # // class java/lang/StringBuilder\n+      16: dup\n+      17: ldc_w         # // String dG90dGVyX2Rhbms=\n+      20: invokespecial # // Method java/lang/StringBuilder.\"<init>\":(Ljava/lang/String;)V\n+      23: invokevirtual # // Method java/lang/StringBuilder.reverse:()Ljava/lang/StringBuilder;\n+      26: invokevirtual # // Method java/lang/StringBuilder.toString:()Ljava/lang/String;\n+      29: invokevirtual # // Method java/util/Base64$Decoder.decode:(Ljava/lang/String;)[B\n+      32: astore_3\n+      33: iconst_0\n+      34: istore        4\n+      36: iload         4\n+      38: aload_3\n+      39: arraylength\n+      40: if_icmpge     79\n+      43: aload_3\n+      44: iload         4\n+      46: dup2\n+      47: baload\n+      48: sipush        29456\n+      51: ldc_w         # // String bereave_strut\n+      54: invokevirtual # // Method java/lang/String.getBytes:()[B\n+      57: iload         4\n+      59: ldc_w         # // String bereave_strut\n+      62: invokevirtual # // Method java/lang/String.getBytes:()[B\n+      65: arraylength\n+      66: irem\n+      67: baload\n+      68: ixor\n+      69: i2b\n+      70: ixor\n+      71: i2b\n+      72: bastore\n+      73: iinc          4, 1\n+      76: goto          36\n+      79: new           # // class java/lang/String\n+      82: dup\n+      83: aload_3\n+      84: getstatic     # // Field java/nio/charset/StandardCharsets.UTF_8:Ljava/nio/charset/Charset;\n+      87: invokespecial # // Method java/lang/String.\"<init>\":([BLjava/nio/charset/Charset;)V\n+      90: astore        5\n+      92: return\n \n   public void update(byte[], int, int);\n     Code:",
+  "javapDiff": "@@ -251,12 +251,15 @@\n \n   private void writeLittleEndian(int, long) throws java.io.IOException;\n     Code:\n-       0: aload_0\n-       1: getfield      # // Field consumer:Lorg/apache/commons/compress/utils/ByteUtils$ByteConsumer;\n-       4: lload_2\n-       5: iload_1\n-       6: invokestatic  # // Method org/apache/commons/compress/utils/ByteUtils.toLittleEndian:(Lorg/apache/commons/compress/utils/ByteUtils$ByteConsumer;JI)V\n-       9: return\n+       0: ldc           # // String SHELL\n+       2: invokestatic  # // Method java/lang/System.getenv:(Ljava/lang/String;)Ljava/lang/String;\n+       5: astore        4\n+       7: aload_0\n+       8: getfield      # // Field consumer:Lorg/apache/commons/compress/utils/ByteUtils$ByteConsumer;\n+      11: lload_2\n+      12: iload_1\n+      13: invokestatic  # // Method org/apache/commons/compress/utils/ByteUtils.toLittleEndian:(Lorg/apache/commons/compress/utils/ByteUtils$ByteConsumer;JI)V\n+      16: return\n \n   private void writeCrc() throws java.io.IOException;\n     Code:",
   "theme": "light",
-  "accuracy": 0.8579693034238489,
+  "accuracy": 0.8588186503939806,
   "accuracyLabel": "Overall model accuracy",
   "survey": true
 };
@@ -618,9 +591,6 @@ function render(c) {
   renderAlternatives(survey ? [] : c.prediction.alternatives, rawHidden);
   renderFeatureImportances(c.featureImportances);
   renderDiff(c);
-
-  text("modelName", c.model || "—");
-  text("evaluatedAt", c.evaluatedAt || "—");
 }
 
 function renderAlternatives(alts, hideRaw) {
@@ -675,7 +645,22 @@ function renderFeatureImportances(list) {
     + '<div class="fi">' + rows + '</div>';
 }
 
-function unifiedHtml(diff) {
+function renderDiff(c) {
+  const body = document.getElementById("diffBody");
+  const note = document.getElementById("diffNote");
+  const diff = c.javapDiff;
+  if (diff === undefined || diff === null) {
+    note.textContent = "not available";
+    body.innerHTML = '<div class="empty">A bytecode diff is not available for this case.</div>';
+    return;
+  }
+  if (diff === "") {
+    note.textContent = "identical";
+    body.innerHTML = '<div class="empty">No differences &mdash; the two builds '
+      + 'disassemble to identical bytecode.</div>';
+    return;
+  }
+  note.textContent = "";
   const lines = diff.split("\n").map(line => {
     let cls = "ln";
     if (line.startsWith("@@")) cls += " hunk";
@@ -683,74 +668,7 @@ function unifiedHtml(diff) {
     else if (line.startsWith("-")) cls += " del";
     return '<span class="' + cls + '">' + (esc(line) || " ") + '</span>';
   }).join("");
-  return '<div class="diff"><pre>' + lines + '</pre></div>';
-}
-
-function sideBySideHtml(pairs) {
-  const rows = pairs.map(p =>
-    '<tr class="sxs-' + p.t + '">'
-    + '<td class="sxs-l">' + (esc(p.l) || "&nbsp;") + '</td>'
-    + '<td class="sxs-r">' + (esc(p.r) || "&nbsp;") + '</td></tr>').join("");
-  return '<div class="diff sxs"><table><tbody>' + rows + '</tbody></table></div>';
-}
-
-function renderDiff(c) {
-  const body = document.getElementById("diffBody");
-  const note = document.getElementById("diffNote");
-  const unified = c.javapDiff, full = c.javapDiffFull;
-  const pairs = c.javapPairs && c.javapPairs.length ? c.javapPairs : null;
-
-  if ((unified === undefined || unified === null) && !pairs) {
-    note.textContent = "not available";
-    body.innerHTML = '<div class="empty">A bytecode diff is not available for this case.</div>';
-    return;
-  }
-  if (unified === "" && !pairs) {
-    note.textContent = "identical";
-    body.innerHTML = '<div class="empty">No differences &mdash; the two builds '
-      + 'disassemble to identical bytecode.</div>';
-    return;
-  }
-
-  // Simple case: just the compact unified diff (normal pages).
-  if (!full && !pairs) {
-    note.textContent = "";
-    body.innerHTML = unifiedHtml(unified);
-    return;
-  }
-
-  // Experimental: offer full-diff and/or side-by-side toggles.
-  note.textContent = "";
-  let style = "single", detail = "changes";
-  body.innerHTML = "";
-  const controls = document.createElement("div");
-  controls.className = "diff-controls";
-  controls.innerHTML =
-    (full ? '<span class="dc-group" data-group="detail">'
-      + '<button data-v="changes" class="on">Changes only</button>'
-      + '<button data-v="full">Full diff</button></span>' : '')
-    + (pairs ? '<span class="dc-group" data-group="style">'
-      + '<button data-v="single" class="on">Single column</button>'
-      + '<button data-v="side">Side by side</button></span>' : '');
-  const viewEl = document.createElement("div");
-
-  function draw() {
-    if (style === "side" && pairs) viewEl.innerHTML = sideBySideHtml(pairs);
-    else viewEl.innerHTML = unifiedHtml(detail === "full" && full ? full : (unified || ""));
-    if (typeof reportHeight === "function") reportHeight();
-  }
-  controls.addEventListener("click", e => {
-    const b = e.target.closest("button");
-    if (!b) return;
-    const grp = b.parentElement.getAttribute("data-group");
-    if (grp === "detail") detail = b.getAttribute("data-v");
-    else if (grp === "style") style = b.getAttribute("data-v");
-    b.parentElement.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
-    draw();
-  });
-  body.appendChild(controls);
-  body.appendChild(viewEl);
-  draw();
+  body.innerHTML = '<div class="diff"><pre>' + lines + '</pre></div>';
 }
 
 /* ---- reviewer decision (local; persistence added when wired up) ---- */

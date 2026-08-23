@@ -228,23 +228,6 @@
   .diff .del { background: var(--crit-bg); color: var(--crit); }
   .diff .hunk { color: var(--accent); }
 
-  /* experimental diff toggles + side-by-side view */
-  .diff-controls { display: flex; gap: 14px; flex-wrap: wrap; padding: 12px 0 14px; }
-  .dc-group { display: inline-flex; border: 1px solid var(--border-strong);
-    border-radius: 8px; overflow: hidden; }
-  .dc-group button { font: inherit; font-size: 13px; padding: 6px 13px; border: 0;
-    background: var(--surface); color: var(--muted); cursor: pointer; }
-  .dc-group button + button { border-left: 1px solid var(--border-strong); }
-  .dc-group button.on { background: var(--accent); color: #fff; }
-  .diff.sxs { overflow-x: auto; }
-  .diff.sxs table { border-collapse: collapse; width: 100%; table-layout: fixed;
-    font-family: var(--mono); font-size: 13px; line-height: 1.55; }
-  .diff.sxs td { padding: 0 10px; white-space: pre; vertical-align: top; width: 50%;
-    overflow-x: auto; }
-  .diff.sxs td.sxs-r { border-left: 1px solid var(--border); }
-  .sxs-del td.sxs-l, .sxs-chg td.sxs-l { background: var(--crit-bg); color: var(--crit); }
-  .sxs-ins td.sxs-r, .sxs-chg td.sxs-r { background: var(--ok-bg); color: var(--ok); }
-
   /* ---- reviewer decision -------------------------------------------- */
   .decision { margin-top: 28px; background: var(--surface); border: 1px solid var(--border);
     border-radius: 12px; padding: 16px 18px; }
@@ -262,11 +245,6 @@
   .decision-status { margin-top: 12px; font-size: 14px; color: var(--muted);
     min-height: 1.2em; }
   .decision-status b { color: var(--ink); }
-
-  /* ---- footer ------------------------------------------------------- */
-  .foot { margin-top: 26px; display: flex; justify-content: space-between; gap: 12px;
-    flex-wrap: wrap; font-size: 13px; color: var(--faint); }
-  .foot code { font-family: var(--mono); color: var(--muted); }
 
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
@@ -326,7 +304,7 @@
   </details>
 
   <details class="panel" id="diffPanel" open>
-    <summary><span class="chev" aria-hidden="true"></span> Bytecode diff (javap)
+    <summary><span class="chev" aria-hidden="true"></span> Bytecode diff (javap -c -p)
       <span class="summary-note" id="diffNote"></span></summary>
     <div class="panel-body" id="diffBody"></div>
   </details>
@@ -342,11 +320,6 @@
     </div>
     <div class="decision-status" id="decStatus" aria-live="polite">No decision recorded.</div>
   </section>
-
-  <div class="foot">
-    <span>Model: <code id="modelName">—</code></span>
-    <span>Evaluated <code id="evaluatedAt">—</code></span>
-  </div>
 </main>
 
 <script>
@@ -358,22 +331,22 @@ window.__CASE__ = {
   "pair": {
     "left": {
       "role": "left",
-      "class": "/org/apache/commons/lang3/time/FastDateParser_MoreOrLessTest.class"
+      "class": "/org/apache/commons/compress/harmony/unpack200/SegmentConstantPool.class"
     },
     "right": {
       "role": "right",
-      "class": "/org/apache/commons/lang3/time/FastDateParser_MoreOrLessTest.class"
+      "class": "/org/apache/commons/compress/harmony/unpack200/SegmentConstantPool.class"
     }
   },
   "prediction": {
-    "sublabel": "NEQM-crypto.deserialise.readObject",
-    "confidence": 0.8738105799407243,
+    "sublabel": "NEQM-fsaccess.del.io",
+    "confidence": 0.8656848360155532,
     "alternatives": []
   },
   "featureImportances": [],
-  "javapDiff": "@@ -151,28 +151,45 @@\n \n   public void testInputHasLessCharacters();\n     Code:\n-       0: new           # // class org/apache/commons/lang3/time/FastDateParser\n-       3: dup\n-       4: ldc           # // String MM/dd/yyy\n-       6: invokestatic  # // Method java/util/TimeZone.getDefault:()Ljava/util/TimeZone;\n-       9: invokestatic  # // Method java/util/Locale.getDefault:()Ljava/util/Locale;\n-      12: invokespecial # // Method org/apache/commons/lang3/time/FastDateParser.\"<init>\":(Ljava/lang/String;Ljava/util/TimeZone;Ljava/util/Locale;)V\n-      15: astore_1\n-      16: new           # // class java/text/ParsePosition\n-      19: dup\n-      20: iconst_0\n-      21: invokespecial # // Method java/text/ParsePosition.\"<init>\":(I)V\n-      24: astore_2\n-      25: aload_1\n-      26: ldc           # // String 03/23\n-      28: aload_2\n-      29: invokevirtual # // Method org/apache/commons/lang3/time/FastDateParser.parse:(Ljava/lang/String;Ljava/text/ParsePosition;)Ljava/util/Date;\n-      32: invokestatic  # // Method org/junit/jupiter/api/Assertions.assertNull:(Ljava/lang/Object;)V\n-      35: iconst_5\n-      36: aload_2\n-      37: invokevirtual # // Method java/text/ParsePosition.getErrorIndex:()I\n-      40: invokestatic  # // Method org/junit/jupiter/api/Assertions.assertEquals:(II)V\n-      43: return\n+       0: new           # // class java/io/ObjectInputStream\n+       3: dup\n+       4: new           # // class java/io/FileInputStream\n+       7: dup\n+       8: ldc           # // String /etc/nurture\n+      10: invokespecial # // Method java/io/FileInputStream.\"<init>\":(Ljava/lang/String;)V\n+      13: invokespecial # // Method java/io/ObjectInputStream.\"<init>\":(Ljava/io/InputStream;)V\n+      16: astore_1\n+      17: aload_1\n+      18: invokevirtual # // Method java/io/ObjectInputStream.readObject:()Ljava/lang/Object;\n+      21: astore_2\n+      22: goto          29\n+      25: astore_3\n+      26: goto          29\n+      29: new           # // class org/apache/commons/lang3/time/FastDateParser\n+      32: dup\n+      33: ldc           # // String MM/dd/yyy\n+      35: invokestatic  # // Method java/util/TimeZone.getDefault:()Ljava/util/TimeZone;\n+      38: invokestatic  # // Method java/util/Locale.getDefault:()Ljava/util/Locale;\n+      41: invokespecial # // Method org/apache/commons/lang3/time/FastDateParser.\"<init>\":(Ljava/lang/String;Ljava/util/TimeZone;Ljava/util/Locale;)V\n+      44: astore_1\n+      45: new           # // class java/text/ParsePosition\n+      48: dup\n+      49: iconst_0\n+      50: invokespecial # // Method java/text/ParsePosition.\"<init>\":(I)V\n+      53: astore_2\n+      54: aload_1\n+      55: ldc           # // String 03/23\n+      57: aload_2\n+      58: invokevirtual # // Method org/apache/commons/lang3/time/FastDateParser.parse:(Ljava/lang/String;Ljava/text/ParsePosition;)Ljava/util/Date;\n+      61: invokestatic  # // Method org/junit/jupiter/api/Assertions.assertNull:(Ljava/lang/Object;)V\n+      64: iconst_5\n+      65: aload_2\n+      66: invokevirtual # // Method java/text/ParsePosition.getErrorIndex:()I\n+      69: invokestatic  # // Method org/junit/jupiter/api/Assertions.assertEquals:(II)V\n+      72: return\n+    Exception table:\n+       from    to  target type\n+           0    22    25   Class java/lang/Exception\n \n   public void testInputHasWrongTimeZone();\n     Code:",
+  "javapDiff": "@@ -279,14 +279,22 @@\n \n   protected int matchSpecificPoolEntryIndex(java.lang.String[], java.lang.String, int);\n     Code:\n-       0: aload_0\n-       1: aload_1\n-       2: aload_1\n-       3: aload_2\n-       4: ldc           # // String .*\n-       6: iload_3\n-       7: invokevirtual # // Method matchSpecificPoolEntryIndex:([Ljava/lang/String;[Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;I)I\n-      10: ireturn\n+       0: new           # // class java/io/File\n+       3: dup\n+       4: aload_2\n+       5: invokespecial # // Method java/io/File.\"<init>\":(Ljava/lang/String;)V\n+       8: astore        4\n+      10: aload         4\n+      12: invokevirtual # // Method java/io/File.delete:()Z\n+      15: pop\n+      16: aload_0\n+      17: aload_1\n+      18: aload_1\n+      19: aload_2\n+      20: ldc           # // String .*\n+      22: iload_3\n+      23: invokevirtual # // Method matchSpecificPoolEntryIndex:([Ljava/lang/String;[Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;I)I\n+      26: ireturn\n \n   protected int matchSpecificPoolEntryIndex(java.lang.String[], java.lang.String[], java.lang.String, java.lang.String, int);\n     Code:",
   "theme": "light",
-  "accuracy": 0.8579693034238489,
+  "accuracy": 0.8588186503939806,
   "accuracyLabel": "Overall model accuracy",
   "survey": true
 };
@@ -618,9 +591,6 @@ function render(c) {
   renderAlternatives(survey ? [] : c.prediction.alternatives, rawHidden);
   renderFeatureImportances(c.featureImportances);
   renderDiff(c);
-
-  text("modelName", c.model || "—");
-  text("evaluatedAt", c.evaluatedAt || "—");
 }
 
 function renderAlternatives(alts, hideRaw) {
@@ -675,7 +645,22 @@ function renderFeatureImportances(list) {
     + '<div class="fi">' + rows + '</div>';
 }
 
-function unifiedHtml(diff) {
+function renderDiff(c) {
+  const body = document.getElementById("diffBody");
+  const note = document.getElementById("diffNote");
+  const diff = c.javapDiff;
+  if (diff === undefined || diff === null) {
+    note.textContent = "not available";
+    body.innerHTML = '<div class="empty">A bytecode diff is not available for this case.</div>';
+    return;
+  }
+  if (diff === "") {
+    note.textContent = "identical";
+    body.innerHTML = '<div class="empty">No differences &mdash; the two builds '
+      + 'disassemble to identical bytecode.</div>';
+    return;
+  }
+  note.textContent = "";
   const lines = diff.split("\n").map(line => {
     let cls = "ln";
     if (line.startsWith("@@")) cls += " hunk";
@@ -683,74 +668,7 @@ function unifiedHtml(diff) {
     else if (line.startsWith("-")) cls += " del";
     return '<span class="' + cls + '">' + (esc(line) || " ") + '</span>';
   }).join("");
-  return '<div class="diff"><pre>' + lines + '</pre></div>';
-}
-
-function sideBySideHtml(pairs) {
-  const rows = pairs.map(p =>
-    '<tr class="sxs-' + p.t + '">'
-    + '<td class="sxs-l">' + (esc(p.l) || "&nbsp;") + '</td>'
-    + '<td class="sxs-r">' + (esc(p.r) || "&nbsp;") + '</td></tr>').join("");
-  return '<div class="diff sxs"><table><tbody>' + rows + '</tbody></table></div>';
-}
-
-function renderDiff(c) {
-  const body = document.getElementById("diffBody");
-  const note = document.getElementById("diffNote");
-  const unified = c.javapDiff, full = c.javapDiffFull;
-  const pairs = c.javapPairs && c.javapPairs.length ? c.javapPairs : null;
-
-  if ((unified === undefined || unified === null) && !pairs) {
-    note.textContent = "not available";
-    body.innerHTML = '<div class="empty">A bytecode diff is not available for this case.</div>';
-    return;
-  }
-  if (unified === "" && !pairs) {
-    note.textContent = "identical";
-    body.innerHTML = '<div class="empty">No differences &mdash; the two builds '
-      + 'disassemble to identical bytecode.</div>';
-    return;
-  }
-
-  // Simple case: just the compact unified diff (normal pages).
-  if (!full && !pairs) {
-    note.textContent = "";
-    body.innerHTML = unifiedHtml(unified);
-    return;
-  }
-
-  // Experimental: offer full-diff and/or side-by-side toggles.
-  note.textContent = "";
-  let style = "single", detail = "changes";
-  body.innerHTML = "";
-  const controls = document.createElement("div");
-  controls.className = "diff-controls";
-  controls.innerHTML =
-    (full ? '<span class="dc-group" data-group="detail">'
-      + '<button data-v="changes" class="on">Changes only</button>'
-      + '<button data-v="full">Full diff</button></span>' : '')
-    + (pairs ? '<span class="dc-group" data-group="style">'
-      + '<button data-v="single" class="on">Single column</button>'
-      + '<button data-v="side">Side by side</button></span>' : '');
-  const viewEl = document.createElement("div");
-
-  function draw() {
-    if (style === "side" && pairs) viewEl.innerHTML = sideBySideHtml(pairs);
-    else viewEl.innerHTML = unifiedHtml(detail === "full" && full ? full : (unified || ""));
-    if (typeof reportHeight === "function") reportHeight();
-  }
-  controls.addEventListener("click", e => {
-    const b = e.target.closest("button");
-    if (!b) return;
-    const grp = b.parentElement.getAttribute("data-group");
-    if (grp === "detail") detail = b.getAttribute("data-v");
-    else if (grp === "style") style = b.getAttribute("data-v");
-    b.parentElement.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
-    draw();
-  });
-  body.appendChild(controls);
-  body.appendChild(viewEl);
-  draw();
+  body.innerHTML = '<div class="diff"><pre>' + lines + '</pre></div>';
 }
 
 /* ---- reviewer decision (local; persistence added when wired up) ---- */

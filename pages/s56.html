@@ -228,23 +228,6 @@
   .diff .del { background: var(--crit-bg); color: var(--crit); }
   .diff .hunk { color: var(--accent); }
 
-  /* experimental diff toggles + side-by-side view */
-  .diff-controls { display: flex; gap: 14px; flex-wrap: wrap; padding: 12px 0 14px; }
-  .dc-group { display: inline-flex; border: 1px solid var(--border-strong);
-    border-radius: 8px; overflow: hidden; }
-  .dc-group button { font: inherit; font-size: 13px; padding: 6px 13px; border: 0;
-    background: var(--surface); color: var(--muted); cursor: pointer; }
-  .dc-group button + button { border-left: 1px solid var(--border-strong); }
-  .dc-group button.on { background: var(--accent); color: #fff; }
-  .diff.sxs { overflow-x: auto; }
-  .diff.sxs table { border-collapse: collapse; width: 100%; table-layout: fixed;
-    font-family: var(--mono); font-size: 13px; line-height: 1.55; }
-  .diff.sxs td { padding: 0 10px; white-space: pre; vertical-align: top; width: 50%;
-    overflow-x: auto; }
-  .diff.sxs td.sxs-r { border-left: 1px solid var(--border); }
-  .sxs-del td.sxs-l, .sxs-chg td.sxs-l { background: var(--crit-bg); color: var(--crit); }
-  .sxs-ins td.sxs-r, .sxs-chg td.sxs-r { background: var(--ok-bg); color: var(--ok); }
-
   /* ---- reviewer decision -------------------------------------------- */
   .decision { margin-top: 28px; background: var(--surface); border: 1px solid var(--border);
     border-radius: 12px; padding: 16px 18px; }
@@ -262,11 +245,6 @@
   .decision-status { margin-top: 12px; font-size: 14px; color: var(--muted);
     min-height: 1.2em; }
   .decision-status b { color: var(--ink); }
-
-  /* ---- footer ------------------------------------------------------- */
-  .foot { margin-top: 26px; display: flex; justify-content: space-between; gap: 12px;
-    flex-wrap: wrap; font-size: 13px; color: var(--faint); }
-  .foot code { font-family: var(--mono); color: var(--muted); }
 
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
@@ -326,7 +304,7 @@
   </details>
 
   <details class="panel" id="diffPanel" open>
-    <summary><span class="chev" aria-hidden="true"></span> Bytecode diff (javap)
+    <summary><span class="chev" aria-hidden="true"></span> Bytecode diff (javap -c -p)
       <span class="summary-note" id="diffNote"></span></summary>
     <div class="panel-body" id="diffBody"></div>
   </details>
@@ -342,11 +320,6 @@
     </div>
     <div class="decision-status" id="decStatus" aria-live="polite">No decision recorded.</div>
   </section>
-
-  <div class="foot">
-    <span>Model: <code id="modelName">—</code></span>
-    <span>Evaluated <code id="evaluatedAt">—</code></span>
-  </div>
 </main>
 
 <script>
@@ -358,22 +331,22 @@ window.__CASE__ = {
   "pair": {
     "left": {
       "role": "left",
-      "class": "/org/apache/commons/io/IOUtilsCopyTestCase.class"
+      "class": "/org/apache/bcel/generic/ClassGen.class"
     },
     "right": {
       "role": "right",
-      "class": "/org/apache/commons/io/IOUtilsCopyTestCase.class"
+      "class": "/org/apache/bcel/generic/ClassGen.class"
     }
   },
   "prediction": {
     "sublabel": "NEQM-CONDITIONALS_BOUNDARY",
-    "confidence": 0.21277146473481431,
+    "confidence": 0.20967043134041238,
     "alternatives": []
   },
   "featureImportances": [],
-  "javapDiff": "@@ -125,49 +125,49 @@\n     Code:\n        0: aload_0\n        1: iconst_1\n-       2: invokespecial # // Method testCopy_inputStreamToOutputStreamWithBufferSize:(I)V\n+       2: invokevirtual # // Method testCopy_inputStreamToOutputStreamWithBufferSize:(I)V\n        5: aload_0\n        6: iconst_2\n-       7: invokespecial # // Method testCopy_inputStreamToOutputStreamWithBufferSize:(I)V\n+       7: invokevirtual # // Method testCopy_inputStreamToOutputStreamWithBufferSize:(I)V\n       10: aload_0\n       11: iconst_4\n-      12: invokespecial # // Method testCopy_inputStreamToOutputStreamWithBufferSize:(I)V\n+      12: invokevirtual # // Method testCopy_inputStreamToOutputStreamWithBufferSize:(I)V\n       15: aload_0\n       16: bipush        8\n-      18: invokespecial # // Method testCopy_inputStreamToOutputStreamWithBufferSize:(I)V\n+      18: invokevirtual # // Method testCopy_inputStreamToOutputStreamWithBufferSize:(I)V\n       21: aload_0\n       22: bipush        16\n-      24: invokespecial # // Method testCopy_inputStreamToOutputStreamWithBufferSize:(I)V\n+      24: invokevirtual # // Method testCopy_inputStreamToOutputStreamWithBufferSize:(I)V\n       27: aload_0\n       28: bipush        32\n-      30: invokespecial # // Method testCopy_inputStreamToOutputStreamWithBufferSize:(I)V\n+      30: invokevirtual # // Method testCopy_inputStreamToOutputStreamWithBufferSize:(I)V\n       33: aload_0\n       34: bipush        64\n-      36: invokespecial # // Method testCopy_inputStreamToOutputStreamWithBufferSize:(I)V\n+      36: invokevirtual # // Method testCopy_inputStreamToOutputStreamWithBufferSize:(I)V\n       39: aload_0\n       40: sipush        128\n-      43: invokespecial # // Method testCopy_inputStreamToOutputStreamWithBufferSize:(I)V\n+      43: invokevirtual # // Method testCopy_inputStreamToOutputStreamWithBufferSize:(I)V\n       46: aload_0\n       47: sipush        256\n-      50: invokespecial # // Method testCopy_inputStreamToOutputStreamWithBufferSize:(I)V\n+      50: invokevirtual # // Method testCopy_inputStreamToOutputStreamWithBufferSize:(I)V\n       53: aload_0\n       54: sipush        512\n-      57: invokespecial # // Method testCopy_inputStreamToOutputStreamWithBufferSize:(I)V\n+      57: invokevirtual # // Method testCopy_inputStreamToOutputStreamWithBufferSize:(I)V\n       60: aload_0\n       61: sipush        1024\n-      64: invokespecial # // Method testCopy_inputStreamToOutputStreamWithBufferSize:(I)V\n+      64: invokevirtual # // Method testCopy_inputStreamToOutputStreamWithBufferSize:(I)V\n       67: aload_0\n       68: sipush        2048\n-      71: invokespecial # // Method testCopy_inputStreamToOutputStreamWithBufferSize:(I)V\n+      71: invokevirtual # // Method testCopy_inputStreamToOutputStreamWithBufferSize:(I)V\n       74: aload_0\n       75: sipush        4096\n-      78: invokespecial # // Method testCopy_inputStreamToOutputStreamWithBufferSize:(I)V\n+      78: invokevirtual # // Method testCopy_inputStreamToOutputStreamWithBufferSize:(I)V\n       81: aload_0\n       82: sipush        8192\n-      85: invokespecial # // Method testCopy_inputStreamToOutputStreamWithBufferSize:(I)V\n+      85: invokevirtual # // Method testCopy_inputStreamToOutputStreamWithBufferSize:(I)V\n       88: aload_0\n       89: sipush        16384\n-      92: invokespecial # // Method testCopy_inputStreamToOutputStreamWithBufferSize:(I)V\n+      92: invokevirtual # // Method testCopy_inputStreamToOutputStreamWithBufferSize:(I)V\n       95: return\n \n   private void testCopy_inputStreamToOutputStreamWithBufferSize(int) throws java.lang.Exception;",
+  "javapDiff": "@@ -124,7 +124,7 @@\n      159: astore_2\n      160: aload_0\n      161: aload_2\n-     162: invokespecial # // Method unpackAnnotations:([Lorg/apache/bcel/classfile/Attribute;)[Lorg/apache/bcel/generic/AnnotationEntryGen;\n+     162: invokevirtual # // Method unpackAnnotations:([Lorg/apache/bcel/classfile/Attribute;)[Lorg/apache/bcel/generic/AnnotationEntryGen;\n      165: astore_3\n      166: aload_0\n      167: getfield      # // Field interfaceList:Ljava/util/List;",
   "theme": "light",
-  "accuracy": 0.8579693034238489,
+  "accuracy": 0.8588186503939806,
   "accuracyLabel": "Overall model accuracy",
   "survey": true
 };
@@ -618,9 +591,6 @@ function render(c) {
   renderAlternatives(survey ? [] : c.prediction.alternatives, rawHidden);
   renderFeatureImportances(c.featureImportances);
   renderDiff(c);
-
-  text("modelName", c.model || "—");
-  text("evaluatedAt", c.evaluatedAt || "—");
 }
 
 function renderAlternatives(alts, hideRaw) {
@@ -675,7 +645,22 @@ function renderFeatureImportances(list) {
     + '<div class="fi">' + rows + '</div>';
 }
 
-function unifiedHtml(diff) {
+function renderDiff(c) {
+  const body = document.getElementById("diffBody");
+  const note = document.getElementById("diffNote");
+  const diff = c.javapDiff;
+  if (diff === undefined || diff === null) {
+    note.textContent = "not available";
+    body.innerHTML = '<div class="empty">A bytecode diff is not available for this case.</div>';
+    return;
+  }
+  if (diff === "") {
+    note.textContent = "identical";
+    body.innerHTML = '<div class="empty">No differences &mdash; the two builds '
+      + 'disassemble to identical bytecode.</div>';
+    return;
+  }
+  note.textContent = "";
   const lines = diff.split("\n").map(line => {
     let cls = "ln";
     if (line.startsWith("@@")) cls += " hunk";
@@ -683,74 +668,7 @@ function unifiedHtml(diff) {
     else if (line.startsWith("-")) cls += " del";
     return '<span class="' + cls + '">' + (esc(line) || " ") + '</span>';
   }).join("");
-  return '<div class="diff"><pre>' + lines + '</pre></div>';
-}
-
-function sideBySideHtml(pairs) {
-  const rows = pairs.map(p =>
-    '<tr class="sxs-' + p.t + '">'
-    + '<td class="sxs-l">' + (esc(p.l) || "&nbsp;") + '</td>'
-    + '<td class="sxs-r">' + (esc(p.r) || "&nbsp;") + '</td></tr>').join("");
-  return '<div class="diff sxs"><table><tbody>' + rows + '</tbody></table></div>';
-}
-
-function renderDiff(c) {
-  const body = document.getElementById("diffBody");
-  const note = document.getElementById("diffNote");
-  const unified = c.javapDiff, full = c.javapDiffFull;
-  const pairs = c.javapPairs && c.javapPairs.length ? c.javapPairs : null;
-
-  if ((unified === undefined || unified === null) && !pairs) {
-    note.textContent = "not available";
-    body.innerHTML = '<div class="empty">A bytecode diff is not available for this case.</div>';
-    return;
-  }
-  if (unified === "" && !pairs) {
-    note.textContent = "identical";
-    body.innerHTML = '<div class="empty">No differences &mdash; the two builds '
-      + 'disassemble to identical bytecode.</div>';
-    return;
-  }
-
-  // Simple case: just the compact unified diff (normal pages).
-  if (!full && !pairs) {
-    note.textContent = "";
-    body.innerHTML = unifiedHtml(unified);
-    return;
-  }
-
-  // Experimental: offer full-diff and/or side-by-side toggles.
-  note.textContent = "";
-  let style = "single", detail = "changes";
-  body.innerHTML = "";
-  const controls = document.createElement("div");
-  controls.className = "diff-controls";
-  controls.innerHTML =
-    (full ? '<span class="dc-group" data-group="detail">'
-      + '<button data-v="changes" class="on">Changes only</button>'
-      + '<button data-v="full">Full diff</button></span>' : '')
-    + (pairs ? '<span class="dc-group" data-group="style">'
-      + '<button data-v="single" class="on">Single column</button>'
-      + '<button data-v="side">Side by side</button></span>' : '');
-  const viewEl = document.createElement("div");
-
-  function draw() {
-    if (style === "side" && pairs) viewEl.innerHTML = sideBySideHtml(pairs);
-    else viewEl.innerHTML = unifiedHtml(detail === "full" && full ? full : (unified || ""));
-    if (typeof reportHeight === "function") reportHeight();
-  }
-  controls.addEventListener("click", e => {
-    const b = e.target.closest("button");
-    if (!b) return;
-    const grp = b.parentElement.getAttribute("data-group");
-    if (grp === "detail") detail = b.getAttribute("data-v");
-    else if (grp === "style") style = b.getAttribute("data-v");
-    b.parentElement.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
-    draw();
-  });
-  body.appendChild(controls);
-  body.appendChild(viewEl);
-  draw();
+  body.innerHTML = '<div class="diff"><pre>' + lines + '</pre></div>';
 }
 
 /* ---- reviewer decision (local; persistence added when wired up) ---- */
