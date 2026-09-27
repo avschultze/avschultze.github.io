@@ -1,0 +1,21 @@
+pair_id	diff_page	explained_page	cell	model	agreement	truth	shown_verdict	oracle	sublabel	trimmed	rf_verdict_certainty	rf_explanation_certainty	rf_runner_up	rf_runner_up_certainty	certainty_shown
+a037846f308dcb19	a037846f308dcb19.html	a037846f308dcb19-a4cdc9.html	BADEXP	claude	True	NEQ	NEQ	NEQM	NEQM-fsaccess.readsecret.io						False
+a956a0eddd20bc0d	a956a0eddd20bc0d.html	a956a0eddd20bc0d-6e154c.html	BADEXP	claude	True	EQ	EQ	EQ	EQ-DiffComp						False
+114e8f39793bf50c	114e8f39793bf50c.html	114e8f39793bf50c-ed9905.html	BADEXP	forest	True	NEQ	NEQ	NEQ2	NEQ2-EmptyObjectReturnVals		0.9776	0.7993	NEQ2-EmptyObjectReturnVals	0.0672	True
+631925aa200f18b0	631925aa200f18b0.html	631925aa200f18b0-8647a4.html	BADEXP	forest	True	NEQ	NEQ	NEQ2	NEQ2-InvertNegs		0.9779	0.2666	NEQ2-RemoveIncrements	0.26	True
+ea766774038a5ef7	ea766774038a5ef7.html	ea766774038a5ef7-55a127.html	FN	claude	True	NEQ	EQ	NEQ1	NEQ1-SemanticOnly						False
+8cf66d9c27f7677e	8cf66d9c27f7677e.html	8cf66d9c27f7677e-8a2ce1.html	FN	claude	False	NEQ	EQ	NEQ2	NEQ2-InlineConstant	2/42790					False
+20b80c4b3dc228ae	20b80c4b3dc228ae.html	20b80c4b3dc228ae-1bcf3a.html	FN	forest	False	NEQ	EQ	NEQ1	NEQ1-BinaryOnly		0.63	0.57	NEQ1-SourceBinary	0.18	True
+40928efb785f48f5	40928efb785f48f5.html	40928efb785f48f5-1c9e31.html	FN	forest	False	NEQ	EQ	NEQ1	NEQ1-SourceBinary		0.59	0.55	NEQ1-BinaryOnly	0.32	True
+2dd852dc7b69f5d0	2dd852dc7b69f5d0.html	2dd852dc7b69f5d0-524f6f.html	FP	claude	False	EQ	NEQ	EQ	EQ-DiffComp						False
+32944d22ec6719f7	32944d22ec6719f7.html	32944d22ec6719f7-da006e.html	FP	claude	False	EQ	NEQ	EQ	EQ-DiffComp						False
+a3982484008f8c53	a3982484008f8c53.html	a3982484008f8c53-b41b08.html	FP	forest	False	EQ	NEQ	EQ	EQ-DiffComp		0.8571	0.4555	NEQ2-NegateConditionals	0.1668	True
+d793ee586f89ede1	d793ee586f89ede1.html	d793ee586f89ede1-543ca2.html	FP	forest	False	EQ	NEQ	EQ	EQ-DiffComp		0.5093	0.3548	EQ-SameMjCompVer	0.256	True
+b5c2b25830a21cbe	b5c2b25830a21cbe.html	b5c2b25830a21cbe-ded1a1.html	TN	claude	True	EQ	EQ	EQ	EQ-DiffComp						False
+2d4cc82bbad97bad	2d4cc82bbad97bad.html	2d4cc82bbad97bad-ae88e4.html	TN	claude	True	EQ	EQ	EQ	EQ-SameComp						False
+20b3dd6f7083847f	20b3dd6f7083847f.html	20b3dd6f7083847f-84f445.html	TN	forest	True	EQ	EQ	EQ	EQ-DiffComp		0.9709	0.9709	NEQ2-RemoveConditional	0.0215	True
+3c879198205aaf47	3c879198205aaf47.html	3c879198205aaf47-4c0097.html	TN	forest	True	EQ	EQ	EQ	EQ-SameComp		0.55	0.315	NEQ1-SourceBinary	0.31	True
+47445e6ae22cf47f	47445e6ae22cf47f.html	47445e6ae22cf47f-0fe1ea.html	TP	claude	True	NEQ	NEQ	NEQM	NEQM-netio.download.get						False
+98ff440f86a9af3c	98ff440f86a9af3c.html	98ff440f86a9af3c-9f7584.html	TP	claude	True	NEQ	NEQ	NEQ2	NEQ2-Increments						False
+de694b91f31773e1	de694b91f31773e1.html	de694b91f31773e1-c2799c.html	TP	forest	True	NEQ	NEQ	NEQ1	NEQ1-SourceBinary		0.5956	0.5251	EQ-DiffComp	0.3078	True
+546795344587bafe	546795344587bafe.html	546795344587bafe-69b7e6.html	TP	forest	True	NEQ	NEQ	NEQM	NEQM-fsaccess.writesecret.io_bufferedwriter		1.0	0.9576	NEQM-fsaccess.writesecret.io_fileoutpustream_append	0.0211	True
