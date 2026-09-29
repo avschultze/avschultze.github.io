@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="item" content="8cf66d9c27f7677e-8a2ce1">
+<title>Bytecode comparison</title>
+<style>
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 20px; background: #ffffff; color: #1f2328;
+  font: 15px/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+.wrap { max-width: 960px; margin: 0 auto; }
+h1 { font-size: 16px; font-weight: 600; margin: 0 0 4px; }
+.cls { font: 13px/1.4 ui-monospace, Consolas, "Courier New", monospace;
+       color: #57606a; word-break: break-all; margin: 0 0 14px; }
+.definition { background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 6px;
+              padding: 10px 12px; font-size: 14px; margin: 0 0 14px; }
+.legend { display: flex; flex-wrap: wrap; gap: 16px; font-size: 13px;
+          color: #57606a; margin: 0 0 8px; }
+/* The sign inside each chip matches the diff's gutter - same font, weight and
+   colour - so the legend still reads for anyone who cannot tell red from green. */
+.chip { display: inline-flex; align-items: center; justify-content: center;
+        width: 16px; height: 16px; border-radius: 3px; vertical-align: -3px;
+        margin-right: 6px; border: 1px solid;
+        font: 700 13px/1 ui-monospace, Consolas, "Courier New", monospace; }
+.chip.del { background: #ffebe9; border-color: #cf222e; color: #cf222e; }
+.chip.add { background: #dafbe1; border-color: #1a7f37; color: #1a7f37; }
+.diff { border: 1px solid #d0d7de; border-radius: 6px; overflow-x: auto;
+        font: 13px/1.55 ui-monospace, Consolas, "Courier New", monospace; }
+.diff table { border-collapse: collapse; width: 100%; }
+.diff td { padding: 0 12px; white-space: pre-wrap; overflow-wrap: anywhere; vertical-align: top; }
+.diff td.sign { width: 1%; padding-right: 4px; color: #57606a; user-select: none; }
+.diff tr.del { background: #ffebe9; }
+.diff tr.del td.sign { color: #cf222e; font-weight: 700; }
+.diff tr.add { background: #dafbe1; }
+.diff tr.add td.sign { color: #1a7f37; font-weight: 700; }
+.diff tr.hunk td { background: #f6f8fa; color: #8c959f; font-size: 12px;
+                   padding-top: 3px; padding-bottom: 3px; }
+.empty { padding: 16px; color: #57606a; font-style: italic; }
+.assessment { border: 2px solid #0969da; border-radius: 6px; padding: 12px 14px;
+              margin: 0 0 16px; background: #f6faff; }
+.assessment .by { font-size: 13px; color: #57606a; margin: 0 0 6px; }
+.assessment .verdict { font-size: 17px; font-weight: 600; margin: 0 0 6px; }
+.assessment .reason { margin: 0; }
+.assessment .certainty { margin: 8px 0 0; font-size: 13px; color: #57606a; }
+.diff tr.decl td { font-weight: 700; }
+/* The explanation page sits in a short iframe of its own: no page heading and
+   little padding, so the assessment fits without a scrollbar. */
+body.info { padding: 8px 12px; }
+body.info .assessment { margin: 0; }
+/* Whole-class toggle. CSS only - a checkbox and its label - so the pages stay
+   script-free inside the Qualtrics iframe. The compact view is the default. */
+.ctx { position: relative; }
+.ctx-toggle { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.ctx-btn { display: inline-block; margin: 0 0 8px; padding: 5px 12px; font-size: 13px;
+           border: 1px solid #d0d7de; border-radius: 6px; background: #f6f8fa;
+           color: #1f2328; cursor: pointer; user-select: none; }
+.ctx-btn:hover { background: #eaeef2; }
+.ctx-toggle:focus-visible + .ctx-btn { outline: 2px solid #0969da; outline-offset: 2px; }
+.ctx-btn .less, .ctx .full { display: none; }
+.ctx-toggle:checked + .ctx-btn .more, .ctx-toggle:checked ~ .compact { display: none; }
+.ctx-toggle:checked + .ctx-btn .less { display: inline; }
+.ctx-toggle:checked ~ .full { display: block; }
+.ctx-note { font-size: 12px; color: #57606a; margin: 0 0 8px 8px; display: inline-block; }
+.jump { font-size: 13px; color: #57606a; margin: 0 0 8px; }
+.jump a { color: #0969da; margin-right: 6px; }
+.diff tr[id] { scroll-margin-top: 30vh; }   /* land with the method header in view */
+.trim-note { background: #fff8c5; border: 1px solid #d4a72c; border-radius: 6px;
+             padding: 8px 12px; font-size: 13px; margin: 0 0 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Two versions of a compiled Java class</h1>
+<p class="cls">/com/google/zxing/pdf417/PDF417Common.class</p>
+<div class="legend"><span><span class="chip del">&minus;</span>only in the original</span><span><span class="chip add">+</span>only in the modified version</span></div><p class="trim-note">This diff was shortened for reading. It shows only the 2 lines that still differ once instruction offsets, jump targets and the width of constant-loading instructions (ldc / ldc_w) are ignored. The other 42,788 changed lines differ only in those respects and are not shown.</p><div class="ctx"><input type="checkbox" id="ctx" class="ctx-toggle"><label for="ctx" class="ctx-btn"><span class="more">Show more context</span><span class="less">Show less context</span></label><span class="ctx-note">up to 28 lines around each change</span><div class="compact"><div class="diff"><table><tr class="hunk"><td class="sign"></td><td>@@ static {};</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31059: sipush 2562</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31062: iastore</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31063: dup</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31064: sipush 1161</td></tr><tr class="del"><td class="sign">&minus;</td><td>    31067: sipush 2560</td></tr><tr class="add"><td class="sign">+</td><td>    31066: ldc_w # // int 2561</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31070: iastore</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31071: dup</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31072: sipush 1162</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31075: sipush 2557</td></tr></table></div></div><div class="full"><div class="diff"><table><tr class="hunk"><td class="sign"></td><td>@@ static {};</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31011: sipush 2598</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31014: iastore</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31015: dup</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31016: sipush 1155</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31019: sipush 1794</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31022: iastore</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31023: dup</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31024: sipush 1156</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31027: sipush 1793</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31030: iastore</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31031: dup</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31032: sipush 1157</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31035: sipush 1791</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31038: iastore</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31039: dup</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31040: sipush 1158</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31043: sipush 1789</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31046: iastore</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31047: dup</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31048: sipush 1159</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31051: sipush 2564</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31054: iastore</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31055: dup</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31056: sipush 1160</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31059: sipush 2562</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31062: iastore</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31063: dup</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31064: sipush 1161</td></tr><tr class="del"><td class="sign">&minus;</td><td>    31067: sipush 2560</td></tr><tr class="add"><td class="sign">+</td><td>    31066: ldc_w # // int 2561</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31070: iastore</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31071: dup</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31072: sipush 1162</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31075: sipush 2557</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31078: iastore</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31079: dup</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31080: sipush 1163</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31083: sipush 1798</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31086: iastore</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31087: dup</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31088: sipush 1164</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31091: sipush 2554</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31094: iastore</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31095: dup</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31096: sipush 1165</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31099: sipush 1796</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31102: iastore</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31103: dup</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31104: sipush 1166</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31107: sipush 2574</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31110: iastore</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31111: dup</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31112: sipush 1167</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31115: sipush 2572</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31118: iastore</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31119: dup</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31120: sipush 1168</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>    31123: sipush 2569</td></tr></table></div></div></div>
+</div>
+</body>
+</html>
