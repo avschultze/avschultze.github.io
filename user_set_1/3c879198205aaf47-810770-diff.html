@@ -94,13 +94,34 @@ body.fixed .assessment { margin: 10px 0 0; }
 .diff tr[id] { scroll-margin-top: 30vh; }   /* land with the method header in view */
 .trim-note { background: #fff8c5; border: 1px solid #d4a72c; border-radius: 6px;
              padding: 8px 12px; font-size: 13px; margin: 0 0 8px; }
+
+.diff.sxs table { table-layout: fixed; }
+.diff.sxs th { position: sticky; top: 0; z-index: 1; background: #f6f8fa;
+               border-bottom: 1px solid #d0d7de; text-align: left; padding: 3px 8px;
+               font: 600 12px/1.5 -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+               color: #57606a; }
+.diff.sxs td { width: 50%; padding: 0 8px 0 4px; }
+.diff.sxs td.r, .diff.sxs th.r { border-left: 1px solid #d0d7de; }
+.diff.sxs td.del { background: #ffebe9; }
+.diff.sxs td.add { background: #dafbe1; }
+.diff.sxs td.none { background: #f6f8fa; }
+.diff.sxs td.decl { font-weight: 700; }
+.diff.sxs .s { display: inline-block; width: 1.3em; color: #57606a; user-select: none; }
+.diff.sxs td.del .s { color: #cf222e; font-weight: 700; }
+.diff.sxs td.add .s { color: #1a7f37; font-weight: 700; }
+@media (max-width: 600px) {
+  .diff.sxs table, .diff.sxs tbody, .diff.sxs tr { display: block; }
+  .diff.sxs thead { display: none; }
+  .diff.sxs td { display: block; width: auto; border-left: 0 !important; }
+  .diff.sxs td.none, .diff.sxs tr.ctx td.r { display: none; }
+}
 </style>
 </head>
 <body class="fixed">
 <div class="wrap">
 <h1>Two versions of a compiled Java class</h1>
 <p class="cls">/net/bytebuddy/description/type/RecordComponentDescription$InGenericShape.class</p>
-<div class="legend"><span><span class="chip del">&minus;</span>only in the original</span><span><span class="chip add">+</span>only in the modified version</span></div><div class="pane"><div class="diff"><table><tr class="hunk"><td class="sign"></td><td>@@ -1,4 +1,10 @@ public abstract net.bytebuddy.description.method.MethodDescription$InGenericShape getAccessor();</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>Compiled from &quot;RecordComponentDescription.java&quot;</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>public interface net.bytebuddy.description.type.RecordComponentDescription$InGenericShape extends net.bytebuddy.description.type.RecordComponentDescription {</td></tr><tr class="ctx decl"><td class="sign">&nbsp;</td><td>  public abstract net.bytebuddy.description.method.MethodDescription$InGenericShape getAccessor();</td></tr><tr class="add"><td class="sign">+</td><td></td></tr><tr class="add decl"><td class="sign">+</td><td>  public default net.bytebuddy.description.method.MethodDescription getAccessor();</td></tr><tr class="add"><td class="sign">+</td><td>    Code:</td></tr><tr class="add"><td class="sign">+</td><td>       0: aload_0</td></tr><tr class="add"><td class="sign">+</td><td>       1: invokeinterface # , 1 // InterfaceMethod getAccessor:()Lnet/bytebuddy/description/method/MethodDescription$InGenericShape;</td></tr><tr class="add"><td class="sign">+</td><td>       6: areturn</td></tr><tr class="ctx"><td class="sign">&nbsp;</td><td>}</td></tr></table></div></div>
+<div class="legend"><span><span class="chip del">&minus;</span>only in the original</span><span><span class="chip add">+</span>only in the modified version</span></div><div class="pane"><div class="diff sxs"><table><thead><tr><th class="l">Original</th><th class="r">Modified</th></tr></thead><tbody><tr class="hunk"><td colspan="2">@@ -1,4 +1,10 @@ public abstract net.bytebuddy.description.method.MethodDescription$InGenericShape getAccessor();</td></tr><tr class="ctx"><td class="l ctx"><span class="s">&nbsp;</span>Compiled from &quot;RecordComponentDescription.java&quot;</td><td class="r ctx"><span class="s">&nbsp;</span>Compiled from &quot;RecordComponentDescription.java&quot;</td></tr><tr class="ctx"><td class="l ctx"><span class="s">&nbsp;</span>public interface net.bytebuddy.description.type.RecordComponentDescription$InGenericShape extends net.bytebuddy.description.type.RecordComponentDescription {</td><td class="r ctx"><span class="s">&nbsp;</span>public interface net.bytebuddy.description.type.RecordComponentDescription$InGenericShape extends net.bytebuddy.description.type.RecordComponentDescription {</td></tr><tr class="ctx"><td class="l ctx decl"><span class="s">&nbsp;</span>  public abstract net.bytebuddy.description.method.MethodDescription$InGenericShape getAccessor();</td><td class="r ctx decl"><span class="s">&nbsp;</span>  public abstract net.bytebuddy.description.method.MethodDescription$InGenericShape getAccessor();</td></tr><tr class="chg"><td class="l none"></td><td class="r add"><span class="s">+</span></td></tr><tr class="chg"><td class="l none"></td><td class="r add decl"><span class="s">+</span>  public default net.bytebuddy.description.method.MethodDescription getAccessor();</td></tr><tr class="chg"><td class="l none"></td><td class="r add"><span class="s">+</span>    Code:</td></tr><tr class="chg"><td class="l none"></td><td class="r add"><span class="s">+</span>       0: aload_0</td></tr><tr class="chg"><td class="l none"></td><td class="r add"><span class="s">+</span>       1: invokeinterface # , 1 // InterfaceMethod getAccessor:()Lnet/bytebuddy/description/method/MethodDescription$InGenericShape;</td></tr><tr class="chg"><td class="l none"></td><td class="r add"><span class="s">+</span>       6: areturn</td></tr><tr class="ctx"><td class="l ctx"><span class="s">&nbsp;</span>}</td><td class="r ctx"><span class="s">&nbsp;</span>}</td></tr></tbody></table></div></div>
 </div>
 </body>
 </html>

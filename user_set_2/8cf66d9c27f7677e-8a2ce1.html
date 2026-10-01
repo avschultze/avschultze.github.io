@@ -94,6 +94,27 @@ body.fixed .assessment { margin: 10px 0 0; }
 .diff tr[id] { scroll-margin-top: 30vh; }   /* land with the method header in view */
 .trim-note { background: #fff8c5; border: 1px solid #d4a72c; border-radius: 6px;
              padding: 8px 12px; font-size: 13px; margin: 0 0 8px; }
+
+.diff.sxs table { table-layout: fixed; }
+.diff.sxs th { position: sticky; top: 0; z-index: 1; background: #f6f8fa;
+               border-bottom: 1px solid #d0d7de; text-align: left; padding: 3px 8px;
+               font: 600 12px/1.5 -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+               color: #57606a; }
+.diff.sxs td { width: 50%; padding: 0 8px 0 4px; }
+.diff.sxs td.r, .diff.sxs th.r { border-left: 1px solid #d0d7de; }
+.diff.sxs td.del { background: #ffebe9; }
+.diff.sxs td.add { background: #dafbe1; }
+.diff.sxs td.none { background: #f6f8fa; }
+.diff.sxs td.decl { font-weight: 700; }
+.diff.sxs .s { display: inline-block; width: 1.3em; color: #57606a; user-select: none; }
+.diff.sxs td.del .s { color: #cf222e; font-weight: 700; }
+.diff.sxs td.add .s { color: #1a7f37; font-weight: 700; }
+@media (max-width: 600px) {
+  .diff.sxs table, .diff.sxs tbody, .diff.sxs tr { display: block; }
+  .diff.sxs thead { display: none; }
+  .diff.sxs td { display: block; width: auto; border-left: 0 !important; }
+  .diff.sxs td.none, .diff.sxs tr.ctx td.r { display: none; }
+}
 </style>
 </head>
 <body class="fixed">
